@@ -131,7 +131,7 @@ box-shadow:0 18px 40px #0009,inset 0 0 0 2px #2a2a2a;position:relative}
 <div class="wrap">
 <header>
   <h1>twenty one pilots · tierlist</h1>
-  <button class="btn ghost" id="bSp" aria-label="Réglages Spotify"><span id="spDot" style="width:10px;height:10px;border-radius:50%;background:var(--mute)"></span>Spotify</button>
+  <button class="btn ghost" id="bSp" aria-label="Réglages"><span id="spDot" style="width:10px;height:10px;border-radius:50%;background:var(--mute)"></span>Réglages</button>
   <div class="tabs" role="tablist">
     <button role="tab" id="tabRate" aria-selected="true">Écouter &amp; noter</button>
     <button role="tab" id="tabBoard" aria-selected="false">Tierlist <span id="nRated"></span></button>
@@ -189,7 +189,7 @@ box-shadow:0 18px 40px #0009,inset 0 0 0 2px #2a2a2a;position:relative}
 </div>
 
 <dialog id="dSp">
-  <h3>Morceaux complets</h3>
+  <h3>Spotify : morceaux complets</h3>
   <div id="spOff">
     <p class="hint">L'appli pilote ton appli Spotify (Premium requis). À faire une seule fois :</p>
     <ol class="steps">
@@ -205,6 +205,13 @@ box-shadow:0 18px 40px #0009,inset 0 0 0 2px #2a2a2a;position:relative}
     <p class="hint">Connecté ✓ La musique sort de ton appli Spotify : ouvre-la au moins une fois sur ton téléphone pour qu'il soit détecté.</p>
     <div class="links"><button class="btn ghost" id="spOut">Déconnecter</button></div>
   </div>
+  <h3 style="margin-top:18px">Vidéos YouTube</h3>
+  <p class="hint">Sur Android, les liens YouTube s'ouvrent dans cette appli (sinon dans le navigateur).</p>
+  <select class="search" id="ytApp" aria-label="Appli YouTube">
+    <option value="revanced">YouTube ReVanced</option><option value="rvx">ReVanced Extended</option><option value="rvx2">ReVanced Extended (ancien nom)</option>
+    <option value="yt">YouTube officiel</option><option value="web">Navigateur</option><option value="custom">Autre (nom de paquet)</option></select>
+  <div id="ytPkgRow" hidden><input class="search" id="ytPkg" placeholder="ex. app.revanced.android.youtube" autocomplete="off" spellcheck="false" style="margin-top:8px">
+  <p class="hint">Le nom de paquet est visible dans Paramètres › Applis › ton appli YouTube (tout en bas, ou via l'appli ReVanced Manager).</p></div>
   <div class="links"><button class="btn ghost" id="spClose">Fermer</button></div>
 </dialog>
 
@@ -411,13 +418,24 @@ $("bNext").onclick=()=>{const q=queue,k=q.findIndex(s=>s.i===st.cur);go(q[(k+1)%
 $("bPrev").onclick=()=>{const p=hist.pop();if(p!=null)go(p,true,true);else{const q=queue,k=q.findIndex(s=>s.i===st.cur);go(q[(k-1+q.length)%q.length].i,true,true)}};
 
 /* réglages Spotify */
+/* YouTube : ouvrir dans l'appli choisie (ReVanced…) via un lien Android « intent » */
+const YT_APPS={revanced:["ReVanced","app.revanced.android.youtube"],rvx:["ReVanced Extended","app.rvx.android.youtube"],rvx2:["RVX (ancien)","com.rvx.android.youtube"],yt:["YouTube","com.google.android.youtube"],web:["YouTube (navigateur)",""]};
+const ANDROID=/Android/i.test(navigator.userAgent);
+function ytPkg(){const k=st.yt||"revanced";return k==="custom"?(st.ytPkg||""):(YT_APPS[k]||YT_APPS.revanced)[1]}
+function ytName(){const k=st.yt||"revanced";return k==="custom"?"ton appli YouTube":(YT_APPS[k]||YT_APPS.revanced)[0]}
+function ytHref(url){const p=ytPkg();if(!ANDROID||!p||!/^https:\/\//.test(url))return url;
+  return "intent://"+url.slice(8)+"#Intent;scheme=https;package="+p+";S.browser_fallback_url="+encodeURIComponent(url)+";end"}
+function ytA(url,label,cls){const h=ytHref(url),i=h.startsWith("intent:");return `<a class="${cls}" href="${esc(h)}"${i?"":' target="_blank" rel="noopener"'}>${esc(label)}</a>`}
 function renderSp(){
+  $("ytApp").value=st.yt||"revanced";$("ytPkg").value=st.ytPkg||"";$("ytPkgRow").hidden=$("ytApp").value!=="custom";
   const on=connect();$("spDot").style.background=on?"#1ed760":"var(--mute)";
   $("spOff").hidden=on;$("spOn").hidden=!on;$("redir").textContent=REDIRECT;if(sp.cid)$("cid").value=sp.cid;
 }
 $("bSp").onclick=()=>{renderSp();$("dSp").showModal()};
 $("spClose").onclick=()=>$("dSp").close();
 $("spGo").onclick=spLogin;
+$("ytApp").onchange=()=>{st.yt=$("ytApp").value;save();renderSp();renderSong()};
+$("ytPkg").onchange=()=>{st.ytPkg=$("ytPkg").value.trim();save();renderSong()};
 $("spOut").onclick=()=>{sp={cid:sp.cid};spSave();renderSp();loadPlayer(false);renderSong();toast("Déconnecté")};
 $("copyRedir").onclick=async()=>{try{await navigator.clipboard.writeText(REDIRECT);toast("Adresse copiée")}catch(e){toast("Copie-la à la main")}};
 setTimeout(async()=>{const p=new URLSearchParams(location.search);
@@ -438,19 +456,20 @@ function renderSong(){
   $("tierBtns").innerHTML=TIERS.map(t=>`<button data-t="${t}" style="background:var(--${t})" class="${st.r[s.t]===t?"on":""}" aria-label="Classer en ${t}">${t}</button>`).join("");
   const q=encodeURIComponent("twenty one pilots "+s.t.replace(/\(.*?\)/g,m=>/feat|live|remix|version|demo|mix|mutemath/i.test(m)?m:""));
   const yt=s.yt||"https://www.youtube.com/results?search_query="+q;
+  const ya=(label,cls)=>ytA(yt,label,cls);
   let links="",hint="";
   if(connect()&&s.on){
     hint="Morceau complet dans ton appli Spotify (garde-la ouverte en arrière-plan).";
-    links=`<a class="btn ghost" href="${esc(yt)}" target="_blank" rel="noopener">YouTube</a>`;
+    links=`${ya("YouTube","btn ghost")}`;
   }else if(!s.sp){
     hint=s.on?"Pas de lecteur intégré pour cette version : ouvre-la dans Spotify ou sur YouTube, puis note-la ici.":"Pas sur Spotify : écoute-la sur YouTube, puis reviens la noter.";
-    links=`<a class="btn red" href="${esc(yt)}" target="_blank" rel="noopener">▶ Écouter sur YouTube</a>`+(s.on?`<a class="btn" href="https://open.spotify.com/search/${q}" target="_blank" rel="noopener">Chercher sur Spotify</a>`:"");
+    links=`${ya("▶ Écouter sur "+ytName(),"btn red")}`+(s.on?`<a class="btn" href="https://open.spotify.com/search/${q}" target="_blank" rel="noopener">Chercher sur Spotify</a>`:"");
   }else if(s.sp[0]==="a"){
     hint="Lecteur de l'album : choisis « "+s.t.replace(/ \((Livestream|MTV Unplugged|Live in Mexico City|Live from SXSW)\)/,"")+" » dans la liste ci-dessus.";
-    links=`<a class="btn ghost" href="${esc(yt)}" target="_blank" rel="noopener">YouTube</a>`;
+    links=`${ya("YouTube","btn ghost")}`;
   }else{
     hint="Morceau complet si tu es connecté à Spotify dans ce navigateur, sinon extrait de 30 s.";
-    links=`<a class="btn ghost" href="https://open.spotify.com/track/${esc(s.sp.slice(2))}" target="_blank" rel="noopener">Ouvrir dans Spotify</a><a class="btn ghost" href="${esc(yt)}" target="_blank" rel="noopener">YouTube</a>`;
+    links=`<a class="btn ghost" href="https://open.spotify.com/track/${esc(s.sp.slice(2))}" target="_blank" rel="noopener">Ouvrir dans Spotify</a>${ya("YouTube","btn ghost")}`;
   }
   $("pHint").textContent=hint;$("extLinks").innerHTML=links;
   $("nRated").textContent="("+Object.keys(st.r).length+")";

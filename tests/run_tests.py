@@ -87,8 +87,8 @@ RESULTS = []
 def test(fn):
     RESULTS.append(fn); return fn
 
-def open_app(pw, connect=False, fake=None, w=390, h=844):
-    b = pw["browser"]; ctx = b.new_context(viewport={"width": w, "height": h})
+def open_app(pw, connect=False, fake=None, w=390, h=844, ua=None):
+    b = pw["browser"]; ctx = b.new_context(viewport={"width": w, "height": h}, **({"user_agent": ua} if ua else {}))
     page = ctx.new_page(); errs = []
     page.on("pageerror", lambda e: errs.append(str(e)))
     page.route("https://fonts.googleapis.com/**", lambda r: r.abort())
@@ -226,6 +226,32 @@ def notes_conservees_apres_rechargement(pw):
     p, f, errs, ctx = open_app(pw)
     rate(p, "C"); p.reload(); p.wait_for_timeout(500)
     check(p.inner_text("#nRated") == "(1)", "les notes ont disparu au rechargement")
+    ctx.close()
+
+ANDROID_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36"
+def goto_song(p, name):
+    p.fill("#q", name); p.click("#list button"); p.wait_for_timeout(400); p.fill("#q", "")
+
+@test
+def youtube_s_ouvre_dans_revanced_sur_android(pw):
+    p, f, errs, ctx = open_app(pw, ua=ANDROID_UA)
+    goto_song(p, "Slowtown")
+    h = p.get_attribute("#extLinks a", "href")
+    check(h.startswith("intent://www.youtube.com/") and "package=app.revanced.android.youtube" in h, f"lien ReVanced attendu, vu {h}")
+    check("S.browser_fallback_url=https%3A%2F%2Fwww.youtube.com" in h, "pas de secours vers YouTube web")
+    check(p.get_attribute("#extLinks a", "target") is None, "un lien d'appli ne doit pas ouvrir d'onglet vide")
+    # réglage : autre paquet
+    p.click("#bSp"); p.select_option("#ytApp", "custom"); p.fill("#ytPkg", "com.exemple.yt"); p.press("#ytPkg", "Enter"); p.dispatch_event("#ytPkg", "change")
+    p.click("#spClose"); p.wait_for_timeout(200)
+    check("package=com.exemple.yt" in p.get_attribute("#extLinks a", "href"), "le paquet personnalisé n'est pas utilisé")
+    check(not errs, errs); ctx.close()
+
+@test
+def youtube_reste_normal_sur_pc(pw):
+    p, f, errs, ctx = open_app(pw, w=1200, h=800)
+    goto_song(p, "Slowtown")
+    h = p.get_attribute("#extLinks a", "href")
+    check(h.startswith("https://www.youtube.com/"), f"sur PC le lien doit rester web, vu {h}")
     ctx.close()
 
 # ---------- lancement ----------
