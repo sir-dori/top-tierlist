@@ -74,7 +74,19 @@ h2{font:700 18px/1.2 Archivo,sans-serif;margin:0 0 12px}
 .tier{display:grid;grid-template-columns:72px minmax(0,1fr);border-bottom:1px solid #000}
 .tier:last-child{border-bottom:0}
 .lab{display:grid;place-items:center;font:900 30px Archivo,sans-serif;color:#141414;min-height:72px}
-.items{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:#1b1f1d;align-content:flex-start}
+.items{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:#1b1f1d;align-content:flex-start;min-height:72px}
+.items:empty::before{content:"Glisse une chanson ici";color:var(--mute);font-size:13px;padding:6px}
+.item{touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.ghost{opacity:.35}.chosen{box-shadow:0 8px 24px #000a;transform:scale(1.04)}
+.countrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 14px}.countrow .count{margin:0}
+.undo{border:1px solid var(--line);border-radius:999px;padding:6px 14px;min-height:38px;font-size:14px;font-weight:600;white-space:nowrap}
+.undo:disabled{opacity:.35;cursor:default}
+.dist{margin:-8px 0 14px}
+.dist svg{display:block;width:100%;height:56px;overflow:visible}
+.dist.big svg{height:120px}
+.dlab{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;text-align:center;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums;line-height:1.25}
+.dlab b{display:block;color:var(--ink);font-size:14px}
+.dist.big .dlab b{font:900 18px Archivo,sans-serif}
 .item{background:var(--ink);color:#141414;border-radius:8px;padding:7px 10px;font-size:14px;font-weight:600;line-height:1.25;max-width:100%;text-align:left;overflow-wrap:anywhere}
 .item small{display:block;font-weight:500;color:#555;font-size:12px}
 .empty{color:var(--mute);font-size:14px;padding:6px}
@@ -131,8 +143,9 @@ box-shadow:0 18px 40px #0009,inset 0 0 0 2px #2a2a2a;position:relative}
     <div class="stage"><div class="disc" id="disc"><div class="label" id="label"></div></div></div>
     <div class="meta"><span class="badge" id="cBadge"></span><span id="cSrc"></span></div>
     <h2 class="title" id="cTitle">…</h2>
-    <p class="count" id="cCount"></p>
+    <div class="countrow"><p class="count" id="cCount"></p><button class="undo" id="bUndo" disabled>↶ Annuler</button></div>
     <div class="tiers" id="tierBtns"></div>
+    <div class="dist" id="dist"></div>
     <div id="playerUI">
       <div class="ctrl">
         <button id="bPrev" aria-label="Chanson précédente"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM9.5 12 18 6v12z"/></svg></button>
@@ -161,7 +174,9 @@ box-shadow:0 18px 40px #0009,inset 0 0 0 2px #2a2a2a;position:relative}
 </main>
 
 <main id="viewBoard" hidden>
-  <div class="stats" id="stats"></div>
+  <div class="row" style="margin:0 0 10px"><div class="stats" id="stats"></div><button class="undo" id="bUndo2" disabled>↶ Annuler</button></div>
+  <div class="card" style="padding:14px 14px 8px;margin-bottom:14px"><div class="dist big" id="dist2"></div></div>
+  <p class="hint" style="margin:0 0 10px">Maintiens une chanson puis fais-la glisser pour la déplacer. Touche-la pour plus d’options.</p>
   <div class="board" id="board"></div>
   <div class="row">
     <div class="links">
@@ -215,6 +230,7 @@ box-shadow:0 18px 40px #0009,inset 0 0 0 2px #2a2a2a;position:relative}
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <script src="songs.js"></script>
 <script>
 {
@@ -420,13 +436,32 @@ function renderSong(){
   $("pHint").textContent=hint;$("extLinks").innerHTML=links;
   $("nRated").textContent="("+Object.keys(st.r).length+")";
 }
-$("tierBtns").onclick=e=>{const b=e.target.closest("button[data-t]");if(!b)return;rate(SONGS[st.cur].t,b.dataset.t);
+$("tierBtns").onclick=e=>{const b=e.target.closest("button[data-t]");if(!b)return;snap(true);rate(SONGS[st.cur].t,b.dataset.t);renderDist();
   const n=nextUnrated(st.cur);if(n==null){renderSong();renderList();toast("Tout est noté dans cette sélection !");return}
   toast(SONGS[st.cur].t+" → "+b.dataset.t);b.classList.add("pop");
   if(RM){go(n,true);return}
   const g=document.querySelector(".stage");g.style.setProperty("--glow",`var(--${b.dataset.t})`);g.classList.add("out");
   setTimeout(()=>go(n,true),430)};
-function rate(t,tier){if(tier)st.r[t]=tier;else delete st.r[t];save()}
+function rate(t,tier){st.o=st.o||{};if(tier){if(st.r[t]!==tier)st.o[t]=Date.now();st.r[t]=tier}else{delete st.r[t];delete st.o[t]}save()}
+let undos=[];
+function snap(back){undos.push({r:{...st.r},o:{...(st.o||{})},cur:st.cur,back});if(undos.length>60)undos.shift();paintUndo()}
+function paintUndo(){$("bUndo").disabled=$("bUndo2").disabled=!undos.length}
+function undo(){const u=undos.pop();if(!u)return;st.r=u.r;st.o=u.o;save();paintUndo();
+  if(u.back&&!$("viewRate").hidden){go(u.cur,true,true)}else{renderSong();renderList()}
+  if(!$("viewBoard").hidden)renderBoard();renderDist();toast("Annulé")}
+$("bUndo").onclick=undo;$("bUndo2").onclick=undo;
+function smooth(p){let d=`M${p[0][0]},${p[0][1]}`;for(let i=0;i<p.length-1;i++){const a=p[i-1]||p[i],b=p[i],c=p[i+1],e=p[i+2]||c;
+  d+=` C${b[0]+(c[0]-a[0])/6},${b[1]+(c[1]-a[1])/6} ${c[0]-(e[0]-b[0])/6},${c[1]-(e[1]-b[1])/6} ${c[0]},${c[1]}`}return d}
+function renderDist(){
+  const n=TIERS.map(t=>Object.values(st.r).filter(x=>x===t).length),tot=n.reduce((a,b)=>a+b,0),mx=Math.max(1,...n);
+  for(const id of ["dist","dist2"]){const el=$(id);if(!el)continue;
+    const W=600,H=id==="dist2"?120:56,gap=8,cw=(W-gap*5)/6;
+    const pts=n.map((v,i)=>[i*(cw+gap)+cw/2,H-4-(v/mx)*(H-10)]);
+    const line=smooth(pts),area=line+` L${pts[5][0]},${H} L${pts[0][0]},${H} Z`;
+    el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="g${id}" x1="0" x2="1">${TIERS.map((t,i)=>`<stop offset="${i/5}" stop-color="var(--${t})"/>`).join("")}</linearGradient></defs>
+      <path d="${area}" fill="url(#g${id})" opacity=".28"/><path d="${line}" fill="none" stroke="url(#g${id})" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>
+      <div class="dlab">${n.map(v=>`<span><b>${v}</b>${tot?Math.round(v/tot*100):0} %</span>`).join("")}</div>`}
+}
 
 function renderChips(){
   $("catChips").innerHTML=Object.entries(CATS).map(([k,v])=>`<button class="chip" data-c="${k}" aria-pressed="${st.cats.includes(k)}">${v} ${SONGS.filter(s=>s.c===k).length}</button>`).join("");
@@ -447,40 +482,49 @@ $("hideRated").onchange=()=>{st.hide=$("hideRated").checked;save();renderList()}
 
 /* ---------- vue tierlist ---------- */
 let sel=null;
+function dropped(e){
+  let k=1,changed=false;const base=Date.now();st.o=st.o||{};
+  document.querySelectorAll("#board .items").forEach(el=>{const t=el.dataset.tier;el.querySelectorAll("[data-i]").forEach(b=>{const s=SONGS[+b.dataset.i];if(st.r[s.t]!==t)changed=true;st.r[s.t]=t;st.o[s.t]=base+k++})});
+  if(e.from===e.to&&e.oldIndex===e.newIndex&&!changed){undos.pop();paintUndo()}
+  save();setTimeout(()=>{renderBoard();renderSong();renderList()},0);
+}
 function renderBoard(){
   const all=Object.keys(st.r).length;
   $("stats").innerHTML=`<div><b>${all}</b>notées</div><div><b>${SONGS.length-all}</b>restantes</div>`+TIERS.map(t=>`<div><b style="color:var(--${t})">${Object.values(st.r).filter(x=>x===t).length}</b>${t}</div>`).join("");
-  $("board").innerHTML=TIERS.map(t=>{const it=SONGS.filter(s=>st.r[s.t]===t);
-    return `<div class="tier"><div class="lab" style="background:var(--${t})">${t}</div><div class="items">${it.length?it.map(s=>`<button class="item" data-i="${s.i}">${coverOf(s)?`<img src="${esc(coverOf(s))}" alt="" loading="lazy">`:""}<span>${esc(s.t)}<small>${esc(s.src)}</small></span></button>`).join(""):'<span class="empty">—</span>'}</div></div>`}).join("");
-  $("nRated").textContent="("+all+")";
+  const O=st.o||{};
+  $("board").innerHTML=TIERS.map(t=>{const it=SONGS.filter(s=>st.r[s.t]===t).sort((a,b)=>(O[a.t]||0)-(O[b.t]||0)||a.i-b.i);
+    return `<div class="tier"><div class="lab" style="background:var(--${t})">${t}</div><div class="items" data-tier="${t}">${it.map(s=>`<button class="item" data-i="${s.i}">${coverOf(s)?`<img src="${esc(coverOf(s))}" alt="" loading="lazy">`:""}<span>${esc(s.t)}<small>${esc(s.src)}</small></span></button>`).join("")}</div></div>`}).join("");
+  $("nRated").textContent="("+all+")";renderDist();
+  if(window.Sortable)document.querySelectorAll("#board .items").forEach(el=>Sortable.create(el,{group:"tiers",animation:160,delay:180,delayOnTouchOnly:true,touchStartThreshold:6,forceFallback:true,fallbackTolerance:4,ghostClass:"ghost",chosenClass:"chosen",onStart:()=>snap(false),onEnd:dropped}));
 }
 $("board").onclick=e=>{const b=e.target.closest("[data-i]");if(!b)return;sel=SONGS[+b.dataset.i];
   $("dTitle").textContent=sel.t;$("dSrc").textContent=sel.src+" · "+sel.y;
   $("dTiers").innerHTML=TIERS.map(t=>`<button data-t="${t}" style="background:var(--${t})" class="${st.r[sel.t]===t?"on":""}">${t}</button>`).join("");
   $("dItem").showModal()};
-$("dTiers").onclick=e=>{const b=e.target.closest("[data-t]");if(!b)return;rate(sel.t,b.dataset.t);$("dItem").close();renderBoard()};
-$("dRemove").onclick=()=>{rate(sel.t,null);$("dItem").close();renderBoard()};
+$("dTiers").onclick=e=>{const b=e.target.closest("[data-t]");if(!b)return;snap(false);rate(sel.t,b.dataset.t);$("dItem").close();renderBoard()};
+$("dRemove").onclick=()=>{snap(false);rate(sel.t,null);$("dItem").close();renderBoard()};
 $("dClose").onclick=()=>$("dItem").close();
 $("dListen").onclick=()=>{$("dItem").close();show("rate");go(sel.i,true)};
 $("bCopy").onclick=async()=>{const txt=TIERS.map(t=>t+" : "+SONGS.filter(s=>st.r[s.t]===t).map(s=>s.t).join(", ")).join("\n");
   try{await navigator.clipboard.writeText(txt);toast("Tierlist copiée")}catch(e){$("saveTxt").value=txt;$("dSaveBox").showModal()}};
 $("bSave").onclick=()=>{$("saveTxt").value=JSON.stringify(st.r);$("dSaveBox").showModal()};
 $("bCopyCode").onclick=async()=>{try{await navigator.clipboard.writeText($("saveTxt").value);toast("Code copié")}catch(e){$("saveTxt").select();toast("Sélectionné : copie-le à la main")}};
-$("bImport").onclick=()=>{try{const o=JSON.parse($("saveTxt").value);const n={};for(const[k,v]of Object.entries(o))if(TIERS.includes(v)&&SONGS.some(s=>s.t===k))n[k]=v;st.r=Object.assign(st.r,n);save();renderBoard();renderSong();renderList();$("dSaveBox").close();toast(Object.keys(n).length+" notes importées")}catch(e){toast("Code invalide")}};
+$("bImport").onclick=()=>{try{snap(false);const o=JSON.parse($("saveTxt").value);const n={};for(const[k,v]of Object.entries(o))if(TIERS.includes(v)&&SONGS.some(s=>s.t===k))n[k]=v;st.r=Object.assign(st.r,n);save();renderBoard();renderSong();renderList();$("dSaveBox").close();toast(Object.keys(n).length+" notes importées")}catch(e){toast("Code invalide")}};
 $("bCloseSave").onclick=()=>$("dSaveBox").close();
 $("bReset").onclick=()=>$("dConfirm").showModal();
 $("bNo").onclick=()=>$("dConfirm").close();
-$("bYes").onclick=()=>{st.r={};save();$("dConfirm").close();renderBoard();renderSong();renderList();toast("Notes effacées")};
+$("bYes").onclick=()=>{snap(false);st.r={};st.o={};save();$("dConfirm").close();renderBoard();renderSong();renderList();toast("Notes effacées")};
 
 function show(v){const r=v==="rate";$("viewRate").hidden=!r;$("viewBoard").hidden=r;$("tabRate").setAttribute("aria-selected",r);$("tabBoard").setAttribute("aria-selected",!r);
   if(!r)renderBoard();if(location.hash!==(r?"":"#tierlist"))history.replaceState(null,"",r?location.pathname:"#tierlist")}
 $("tabRate").onclick=()=>show("rate");$("tabBoard").onclick=()=>show("board");
 window.addEventListener("hashchange",()=>show(location.hash==="#tierlist"?"board":"rate"));
 document.addEventListener("keydown",e=>{if(e.target.matches("input,textarea")||document.querySelector("dialog[open]"))return;
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault();undo();return}
   const k=e.key.toUpperCase();if(TIERS.includes(k)&&!$("viewRate").hidden){$("tierBtns").querySelector(`[data-t="${k}"]`).click()}
   else if(e.key===" "&&ctl){e.preventDefault();ctl.togglePlay()}});
 
-buildQueue();renderChips();
+buildQueue();renderChips();renderDist();paintUndo();
 if(!SONGS[st.cur]||!queue.some(s=>s.i===st.cur))st.cur=(queue.find(s=>!st.r[s.t])||queue[0]).i;
 renderSong();renderList();loadPlayer(false);
 show(location.hash==="#tierlist"?"board":"rate");
