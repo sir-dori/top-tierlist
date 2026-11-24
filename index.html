@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101614">
+<title>Tierlist twenty one pilots</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: un baladeur de nuit, calme, fait pour noter vite au pouce
+   IDEA: une carte de morceau « en cours », puis le mur de classement d'un tiermaker
+   PICTURE: le titre énorme + six cases de couleur S→E, le lecteur juste dessous
+   COLOUR and TYPE: nuit vert-noir, crème, accent rouge ; couleurs tiermaker classiques ; Archivo 900 + Inter
+   LAYOUT: une colonne au téléphone, deux colonnes (morceau | file) au-delà de 900px */
+:root{--bg:#101614;--panel:#18211e;--line:#26332e;--ink:#efe9dc;--mute:#9aa59f;--acc:#e5484d;
+--S:#ff7f7f;--A:#ffbf7f;--B:#ffdf7f;--C:#bfff7f;--D:#7fbfff;--E:#bf7fff;color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:12px 16px 40px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 0 14px}
+header h1{font:900 20px/1.1 Archivo,sans-serif;margin:0;letter-spacing:-.01em;flex:1 1 auto}
+.tabs{display:flex;background:var(--panel);border-radius:999px;padding:4px}
+.tabs button{padding:9px 16px;border-radius:999px;min-height:40px;color:var(--mute);font-weight:600}
+.tabs button[aria-selected=true]{background:var(--ink);color:var(--bg)}
+.grid{display:grid;gap:20px}
+@media(min-width:900px){.grid{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:clamp(16px,3vw,28px)}
+.meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;color:var(--mute);font-size:14px}
+.badge{border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:13px;white-space:nowrap}
+.title{font:900 clamp(34px,7vw,58px)/1.02 Archivo,sans-serif;margin:12px 0 6px;text-wrap:balance;overflow-wrap:anywhere}
+.count{color:var(--mute);font-size:14px;margin:0 0 18px}
+.tiers{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:6px 0 18px}
+.tiers button{aspect-ratio:1/1;max-height:92px;border-radius:14px;font:900 clamp(24px,5vw,36px)/1 Archivo,sans-serif;color:#141414;transition:transform .12s}
+.tiers button:active{transform:scale(.92)}
+.tiers button.on{outline:3px solid var(--ink);outline-offset:3px}
+.ctrl{display:flex;justify-content:center;align-items:center;gap:6px;margin:4px 0 8px}
+.ctrl button{width:48px;height:48px;border-radius:50%;display:grid;place-items:center}
+.ctrl button:hover{background:var(--line)}
+.ctrl .pp{width:64px;height:64px;background:var(--ink);color:var(--bg)}
+.ctrl .pp:hover{background:#fff}
+.ctrl svg{width:24px;height:24px;fill:currentColor}
+.bar{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums}
+.bar input{flex:1;accent-color:var(--acc);height:28px}
+#embedBox{margin-top:14px;border-radius:12px;overflow:hidden;min-height:0}
+#embedBox iframe{display:block;border:0}
+.hint{font-size:14px;color:var(--mute);margin:8px 0 0}
+.links{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:10px 16px;border-radius:12px;background:var(--line);color:var(--ink);text-decoration:none;font-weight:600;font-size:15px}
+.btn.red{background:var(--acc);color:#fff}
+.btn.ghost{background:none;border:1px solid var(--line)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-top:16px}
+h2{font:700 18px/1.2 Archivo,sans-serif;margin:0 0 12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:6px 12px;min-height:36px;font-size:14px;color:var(--mute)}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.search{width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg);padding:10px 14px;font-size:16px}
+.list{list-style:none;margin:10px 0 0;padding:0;max-height:min(62vh,620px);overflow:auto;border-top:1px solid var(--line)}
+.list li button{width:100%;display:flex;gap:10px;align-items:center;text-align:left;padding:10px 4px;border-bottom:1px solid var(--line);min-height:48px}
+.list li button.cur{background:#ffffff0d}
+.list .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .s{color:var(--mute);font-size:13px;white-space:nowrap;max-width:40%;overflow:hidden;text-overflow:ellipsis}
+.dot{width:28px;height:28px;flex:none;border-radius:8px;display:grid;place-items:center;font:900 14px Archivo,sans-serif;color:#141414;background:var(--line)}
+.dot.no{color:var(--mute);background:none;border:1px dashed var(--line)}
+.opt{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:14px;color:var(--mute)}
+.opt select{background:var(--bg);border:1px solid var(--line);border-radius:10px;min-height:40px;padding:6px 10px}
+.opt label{display:flex;align-items:center;gap:6px;min-height:40px}
+/* tierlist */
+.board{border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+.tier{display:grid;grid-template-columns:72px minmax(0,1fr);border-bottom:1px solid #000}
+.tier:last-child{border-bottom:0}
+.lab{display:grid;place-items:center;font:900 30px Archivo,sans-serif;color:#141414;min-height:72px}
+.items{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:#1b1f1d;align-content:flex-start}
+.item{background:var(--ink);color:#141414;border-radius:8px;padding:7px 10px;font-size:14px;font-weight:600;line-height:1.25;max-width:100%;text-align:left;overflow-wrap:anywhere}
+.item small{display:block;font-weight:500;color:#555;font-size:12px}
+.empty{color:var(--mute);font-size:14px;padding:6px}
+.stats{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 14px;color:var(--mute);font-size:14px}
+.stats b{color:var(--ink);font:900 22px Archivo,sans-serif;display:block}
+dialog{border:1px solid var(--line);border-radius:18px;background:var(--panel);color:var(--ink);padding:20px;width:min(440px,92vw)}
+dialog::backdrop{background:#000a}
+dialog h3{font:900 22px/1.15 Archivo,sans-serif;margin:0 0 4px}
+textarea{width:100%;min-height:120px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px;font:13px/1.4 ui-monospace,monospace}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+.toast.on{opacity:1}
+[hidden]{display:none!important}
+@media(max-width:600px){.wrap{padding:8px 12px 32px}.tier{grid-template-columns:52px minmax(0,1fr)}.lab{font-size:24px;min-height:60px}.tiers{gap:6px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>twenty one pilots · tierlist</h1>
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tabRate" aria-selected="true">Écouter &amp; noter</button>
+    <button role="tab" id="tabBoard" aria-selected="false">Tierlist <span id="nRated"></span></button>
+  </div>
+</header>
+
+<main id="viewRate" class="grid">
+  <section class="card" aria-live="polite">
+    <div class="meta"><span class="badge" id="cBadge"></span><span id="cSrc"></span></div>
+    <h2 class="title" id="cTitle">…</h2>
+    <p class="count" id="cCount"></p>
+    <div class="tiers" id="tierBtns"></div>
+    <div id="playerUI">
+      <div class="ctrl">
+        <button id="bPrev" aria-label="Chanson précédente"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM9.5 12 18 6v12z"/></svg></button>
+        <button id="bBack" aria-label="Reculer de 10 secondes"><svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg></button>
+        <button id="bPlay" class="pp" aria-label="Lecture ou pause"><svg viewBox="0 0 24 24" id="icoPlay"><path d="M8 5v14l11-7z"/></svg></button>
+        <button id="bFwd" aria-label="Avancer de 10 secondes"><svg viewBox="0 0 24 24"><path d="M12 5V1l5 5-5 5V7a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8z"/></svg></button>
+        <button id="bNext" aria-label="Chanson suivante sans noter"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18V6l8.5 6z"/></svg></button>
+      </div>
+      <div class="bar"><span id="tPos">0:00</span><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Position dans la chanson"><span id="tDur">0:00</span></div>
+    </div>
+    <div id="embedBox"></div>
+    <p class="hint" id="pHint"></p>
+    <div class="links" id="extLinks"></div>
+  </section>
+
+  <aside class="card">
+    <h2>File d'écoute</h2>
+    <div class="chips" id="catChips"></div>
+    <div class="opt">
+      <select id="order" aria-label="Ordre"><option value="chrono">Ordre chronologique</option><option value="shuffle">Aléatoire</option></select>
+      <label><input type="checkbox" id="hideRated" checked> Masquer les notées</label>
+    </div>
+    <input class="search" id="q" type="search" placeholder="Chercher une chanson…" aria-label="Chercher une chanson">
+    <ul class="list" id="list"></ul>
+  </aside>
+</main>
+
+<main id="viewBoard" hidden>
+  <div class="stats" id="stats"></div>
+  <div class="board" id="board"></div>
+  <div class="row">
+    <div class="links">
+      <button class="btn" id="bCopy">Copier en texte</button>
+      <button class="btn ghost" id="bSave">Sauvegarder / transférer</button>
+    </div>
+    <button class="btn ghost" id="bReset">Tout effacer</button>
+  </div>
+</main>
+</div>
+
+<dialog id="dItem">
+  <h3 id="dTitle"></h3>
+  <p class="hint" id="dSrc"></p>
+  <div class="tiers" id="dTiers" style="margin-top:14px"></div>
+  <div class="links"><button class="btn" id="dListen">Réécouter</button><button class="btn ghost" id="dRemove">Retirer</button><button class="btn ghost" id="dClose">Fermer</button></div>
+</dialog>
+
+<dialog id="dSaveBox">
+  <h3>Sauvegarder / transférer</h3>
+  <p class="hint">Tes notes sont gardées dans ce navigateur. Pour les passer sur un autre appareil : copie ce code, puis colle-le là-bas et clique « Importer ».</p>
+  <textarea id="saveTxt" aria-label="Code de sauvegarde"></textarea>
+  <div class="links"><button class="btn red" id="bCopyCode">Copier le code</button><button class="btn" id="bImport">Importer</button><button class="btn ghost" id="bCloseSave">Fermer</button></div>
+</dialog>
+
+<dialog id="dConfirm">
+  <h3>Tout effacer ?</h3>
+  <p class="hint">Toutes tes notes seront supprimées de ce navigateur.</p>
+  <div class="links"><button class="btn red" id="bYes">Effacer</button><button class="btn ghost" id="bNo">Annuler</button></div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script src="songs.js"></script>
+<script>
+{
+const TIERS=["S","A","B","C","D","E"];
+const CATS={A:"Albums",S:"Singles",V:"Versions & remix",L:"Live",R:"Reprises",I:"Inédits",T:"Tyler solo"};
+const CAT1={A:"Album",S:"Single / hors album",V:"Version",L:"Live",R:"Reprise",I:"Inédit",T:"Tyler Joseph solo"};
+const SONGS=window.SONGS.map((s,i)=>({i,t:s[0],src:s[1],y:s[2],c:s[3],sp:s[4],yt:s[5],on:s[6]}));
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const K="top-tierlist-v1";
+let st={r:{},cats:["A","S","V","L","R","I","T"],order:"chrono",hide:true,cur:0,seed:Math.random()};
+try{const s=JSON.parse(localStorage.getItem(K)||"null");if(s)st=Object.assign(st,s)}catch(e){}
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(st))}catch(e){}};
+let queue=[],hist=[];
+
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),1600)}
+function rnd(seed){let x=Math.floor(seed*2**31)||1;return()=>(x=(x*48271)%2147483647)/2147483647}
+function buildQueue(){
+  let q=SONGS.filter(s=>st.cats.includes(s.c));
+  if(st.order==="shuffle"){const r=rnd(st.seed);q=q.map(s=>[r(),s]).sort((a,b)=>a[0]-b[0]).map(x=>x[1])}
+  queue=q;
+}
+function visible(){const q=$("q").value.trim().toLowerCase();return queue.filter(s=>(!st.hide||!st.r[s.t]||s.i===st.cur)&&(!q||(s.t+" "+s.src).toLowerCase().includes(q)))}
+function nextUnrated(from){const q=queue;let k=q.findIndex(s=>s.i===from);for(let n=1;n<=q.length;n++){const s=q[(k+n+q.length)%q.length];if(!st.r[s.t])return s.i}return null}
+
+/* ---------- Spotify ---------- */
+let api=null,ctl=null,ctlKind=null,pos=0,dur=0,paused=true,dragging=false,wantPlay=false;
+window.onSpotifyIframeApiReady=a=>{api=a;loadPlayer(false)};
+function fmt(ms){const s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+function uriOf(s){return s.sp?(s.sp[0]==="t"?"spotify:track:":"spotify:album:")+s.sp.slice(2):null}
+function loadPlayer(play){
+  const s=SONGS[st.cur];const uri=uriOf(s);const kind=s.sp?s.sp[0]:null;
+  $("playerUI").hidden=kind!=="t";
+  pos=0;dur=0;paused=true;paint();
+  if(!uri){if(ctl){$("embedBox").hidden=true;try{ctl.pause()}catch(e){}}return}
+  $("embedBox").hidden=false;
+  if(!api)return;
+  const h=kind==="t"?80:352;
+  if(ctl&&ctlKind===kind){ctl.loadUri(uri);if(play){wantPlay=true}return}
+  if(ctl){try{ctl.destroy()}catch(e){}ctl=null}
+  const box=$("embedBox");box.innerHTML="<div></div>";
+  api.createController(box.firstChild,{uri,width:"100%",height:h},c=>{
+    ctl=c;ctlKind=kind;
+    c.addListener("ready",()=>{if(wantPlay||play){wantPlay=false;c.play()}});
+    c.addListener("playback_update",e=>{const d=e.data;paused=d.isPaused;dur=d.duration;if(!dragging)pos=d.position;paint()});
+  });
+  if(play)wantPlay=true;
+}
+function paint(){
+  $("tPos").textContent=fmt(pos);$("tDur").textContent=fmt(dur);
+  if(!dragging)$("seek").value=dur?Math.round(pos/dur*1000):0;
+  $("icoPlay").innerHTML=paused?'<path d="M8 5v14l11-7z"/>':'<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>';
+}
+$("bPlay").onclick=()=>{if(!ctl)return;ctl.togglePlay()};
+$("bBack").onclick=()=>{if(ctl)ctl.seek(Math.max(0,pos/1000-10))};
+$("bFwd").onclick=()=>{if(ctl)ctl.seek(Math.min(dur/1000,pos/1000+10))};
+$("seek").oninput=()=>{dragging=true;pos=$("seek").value/1000*dur;$("tPos").textContent=fmt(pos)};
+$("seek").onchange=()=>{dragging=false;if(ctl)ctl.seek(pos/1000)};
+$("bNext").onclick=()=>{const q=queue,k=q.findIndex(s=>s.i===st.cur);go(q[(k+1)%q.length].i,true)};
+$("bPrev").onclick=()=>{const p=hist.pop();if(p!=null)go(p,true,true);else{const q=queue,k=q.findIndex(s=>s.i===st.cur);go(q[(k-1+q.length)%q.length].i,true,true)}};
+
+/* ---------- vue notation ---------- */
+function go(i,play,back){if(!back&&st.cur!==i)hist.push(st.cur);st.cur=i;save();renderSong();loadPlayer(play);renderList()}
+function renderSong(){
+  const s=SONGS[st.cur];
+  $("cTitle").textContent=s.t;$("cBadge").textContent=CAT1[s.c];$("cSrc").textContent=s.src+" · "+s.y;
+  const done=queue.filter(x=>st.r[x.t]).length;
+  $("cCount").textContent=done+" / "+queue.length+" notées dans la sélection";
+  $("tierBtns").innerHTML=TIERS.map(t=>`<button data-t="${t}" style="background:var(--${t})" class="${st.r[s.t]===t?"on":""}" aria-label="Classer en ${t}">${t}</button>`).join("");
+  const q=encodeURIComponent("twenty one pilots "+s.t.replace(/\(.*?\)/g,m=>/feat|live|remix|version|demo|mix|mutemath/i.test(m)?m:""));
+  const yt=s.yt||"https://www.youtube.com/results?search_query="+q;
+  let links="",hint="";
+  if(!s.sp){
+    hint=s.on?"Pas de lecteur intégré pour cette version : ouvre-la dans Spotify ou sur YouTube, puis note-la ici.":"Pas sur Spotify : écoute-la sur YouTube, puis reviens la noter.";
+    links=`<a class="btn red" href="${esc(yt)}" target="_blank" rel="noopener">▶ Écouter sur YouTube</a>`+(s.on?`<a class="btn" href="https://open.spotify.com/search/${q}" target="_blank" rel="noopener">Chercher sur Spotify</a>`:"");
+  }else if(s.sp[0]==="a"){
+    hint="Lecteur de l'album : choisis « "+s.t.replace(/ \((Livestream|MTV Unplugged|Live in Mexico City|Live from SXSW)\)/,"")+" » dans la liste ci-dessus.";
+    links=`<a class="btn ghost" href="${esc(yt)}" target="_blank" rel="noopener">YouTube</a>`;
+  }else{
+    hint="Morceau complet si tu es connecté à Spotify dans ce navigateur, sinon extrait de 30 s.";
+    links=`<a class="btn ghost" href="https://open.spotify.com/track/${esc(s.sp.slice(2))}" target="_blank" rel="noopener">Ouvrir dans Spotify</a><a class="btn ghost" href="${esc(yt)}" target="_blank" rel="noopener">YouTube</a>`;
+  }
+  $("pHint").textContent=hint;$("extLinks").innerHTML=links;
+  $("nRated").textContent="("+Object.keys(st.r).length+")";
+}
+$("tierBtns").onclick=e=>{const b=e.target.closest("button[data-t]");if(!b)return;rate(SONGS[st.cur].t,b.dataset.t);
+  const n=nextUnrated(st.cur);if(n==null){renderSong();renderList();toast("Tout est noté dans cette sélection !");return}
+  toast(SONGS[st.cur].t+" → "+b.dataset.t);go(n,true)};
+function rate(t,tier){if(tier)st.r[t]=tier;else delete st.r[t];save()}
+
+function renderChips(){
+  $("catChips").innerHTML=Object.entries(CATS).map(([k,v])=>`<button class="chip" data-c="${k}" aria-pressed="${st.cats.includes(k)}">${v} ${SONGS.filter(s=>s.c===k).length}</button>`).join("");
+}
+$("catChips").onclick=e=>{const b=e.target.closest("[data-c]");if(!b)return;const c=b.dataset.c;
+  st.cats=st.cats.includes(c)?st.cats.filter(x=>x!==c):[...st.cats,c];if(!st.cats.length)st.cats=[c];
+  save();renderChips();buildQueue();if(!queue.some(s=>s.i===st.cur)){const n=queue.find(s=>!st.r[s.t])||queue[0];go(n.i,false)}else{renderSong();renderList()}};
+function renderList(){
+  const v=visible();
+  $("list").innerHTML=v.length?v.map(s=>{const r=st.r[s.t];return `<li><button data-i="${s.i}" class="${s.i===st.cur?"cur":""}"><span class="dot ${r?"":"no"}" style="${r?"background:var(--"+r+")":""}">${r||""}</span><span class="t">${esc(s.t)}</span><span class="s">${esc(s.src)}</span></button></li>`}).join(""):`<li class="empty">Rien à afficher.</li>`;
+  const c=$("list").querySelector(".cur");if(c&&!renderList.noscroll){const L=$("list"),top=c.offsetTop-L.offsetTop;if(top<L.scrollTop||top>L.scrollTop+L.clientHeight-50)L.scrollTop=top-L.clientHeight/3}
+}
+$("list").onclick=e=>{const b=e.target.closest("[data-i]");if(b)go(+b.dataset.i,true)};
+$("q").oninput=()=>{renderList.noscroll=true;renderList();renderList.noscroll=false};
+$("order").value=st.order;$("hideRated").checked=st.hide;
+$("order").onchange=()=>{st.order=$("order").value;st.seed=Math.random();save();buildQueue();renderList();renderSong()};
+$("hideRated").onchange=()=>{st.hide=$("hideRated").checked;save();renderList()};
+
+/* ---------- vue tierlist ---------- */
+let sel=null;
+function renderBoard(){
+  const all=Object.keys(st.r).length;
+  $("stats").innerHTML=`<div><b>${all}</b>notées</div><div><b>${SONGS.length-all}</b>restantes</div>`+TIERS.map(t=>`<div><b style="color:var(--${t})">${Object.values(st.r).filter(x=>x===t).length}</b>${t}</div>`).join("");
+  $("board").innerHTML=TIERS.map(t=>{const it=SONGS.filter(s=>st.r[s.t]===t);
+    return `<div class="tier"><div class="lab" style="background:var(--${t})">${t}</div><div class="items">${it.length?it.map(s=>`<button class="item" data-i="${s.i}">${esc(s.t)}<small>${esc(s.src)}</small></button>`).join(""):'<span class="empty">—</span>'}</div></div>`}).join("");
+  $("nRated").textContent="("+all+")";
+}
+$("board").onclick=e=>{const b=e.target.closest("[data-i]");if(!b)return;sel=SONGS[+b.dataset.i];
+  $("dTitle").textContent=sel.t;$("dSrc").textContent=sel.src+" · "+sel.y;
+  $("dTiers").innerHTML=TIERS.map(t=>`<button data-t="${t}" style="background:var(--${t})" class="${st.r[sel.t]===t?"on":""}">${t}</button>`).join("");
+  $("dItem").showModal()};
+$("dTiers").onclick=e=>{const b=e.target.closest("[data-t]");if(!b)return;rate(sel.t,b.dataset.t);$("dItem").close();renderBoard()};
+$("dRemove").onclick=()=>{rate(sel.t,null);$("dItem").close();renderBoard()};
+$("dClose").onclick=()=>$("dItem").close();
+$("dListen").onclick=()=>{$("dItem").close();show("rate");go(sel.i,true)};
+$("bCopy").onclick=async()=>{const txt=TIERS.map(t=>t+" : "+SONGS.filter(s=>st.r[s.t]===t).map(s=>s.t).join(", ")).join("\n");
+  try{await navigator.clipboard.writeText(txt);toast("Tierlist copiée")}catch(e){$("saveTxt").value=txt;$("dSaveBox").showModal()}};
+$("bSave").onclick=()=>{$("saveTxt").value=JSON.stringify(st.r);$("dSaveBox").showModal()};
+$("bCopyCode").onclick=async()=>{try{await navigator.clipboard.writeText($("saveTxt").value);toast("Code copié")}catch(e){$("saveTxt").select();toast("Sélectionné : copie-le à la main")}};
+$("bImport").onclick=()=>{try{const o=JSON.parse($("saveTxt").value);const n={};for(const[k,v]of Object.entries(o))if(TIERS.includes(v)&&SONGS.some(s=>s.t===k))n[k]=v;st.r=Object.assign(st.r,n);save();renderBoard();renderSong();renderList();$("dSaveBox").close();toast(Object.keys(n).length+" notes importées")}catch(e){toast("Code invalide")}};
+$("bCloseSave").onclick=()=>$("dSaveBox").close();
+$("bReset").onclick=()=>$("dConfirm").showModal();
+$("bNo").onclick=()=>$("dConfirm").close();
+$("bYes").onclick=()=>{st.r={};save();$("dConfirm").close();renderBoard();renderSong();renderList();toast("Notes effacées")};
+
+function show(v){const r=v==="rate";$("viewRate").hidden=!r;$("viewBoard").hidden=r;$("tabRate").setAttribute("aria-selected",r);$("tabBoard").setAttribute("aria-selected",!r);
+  if(!r)renderBoard();if(location.hash!==(r?"":"#tierlist"))history.replaceState(null,"",r?location.pathname:"#tierlist")}
+$("tabRate").onclick=()=>show("rate");$("tabBoard").onclick=()=>show("board");
+window.addEventListener("hashchange",()=>show(location.hash==="#tierlist"?"board":"rate"));
+document.addEventListener("keydown",e=>{if(e.target.matches("input,textarea")||document.querySelector("dialog[open]"))return;
+  const k=e.key.toUpperCase();if(TIERS.includes(k)&&!$("viewRate").hidden){$("tierBtns").querySelector(`[data-t="${k}"]`).click()}
+  else if(e.key===" "&&ctl){e.preventDefault();ctl.togglePlay()}});
+
+buildQueue();renderChips();
+if(!SONGS[st.cur]||!queue.some(s=>s.i===st.cur))st.cur=(queue.find(s=>!st.r[s.t])||queue[0]).i;
+renderSong();renderList();loadPlayer(false);
+show(location.hash==="#tierlist"?"board":"rate");
+const sc=document.createElement("script");sc.src="https://open.spotify.com/embed/iframe-api/v1";sc.async=true;document.body.appendChild(sc);
+}
+</script>
+</body>
+</html>
