@@ -195,7 +195,7 @@ function visible(){const q=$("q").value.trim().toLowerCase();return queue.filter
 function nextUnrated(from){const q=queue;let k=q.findIndex(s=>s.i===from);for(let n=1;n<=q.length;n++){const s=q[(k+n+q.length)%q.length];if(!st.r[s.t])return s.i}return null}
 
 /* ---------- Spotify ---------- */
-let api=null,ctl=null,ctlKind=null,pos=0,dur=0,paused=true,dragging=false,wantPlay=false;
+let jumpFor=null,api=null,ctl=null,ctlKind=null,pos=0,dur=0,paused=true,dragging=false,wantPlay=false;
 window.onSpotifyIframeApiReady=a=>{api=a;loadPlayer(false)};
 function fmt(ms){const s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
 function uriOf(s){return s.sp?(s.sp[0]==="t"?"spotify:track:":"spotify:album:")+s.sp.slice(2):null}
@@ -213,7 +213,10 @@ function loadPlayer(play){
   api.createController(box.firstChild,{uri,width:"100%",height:h},c=>{
     ctl=c;ctlKind=kind;
     c.addListener("ready",()=>{if(wantPlay||play){wantPlay=false;c.play()}});
-    c.addListener("playback_update",e=>{const d=e.data;paused=d.isPaused;dur=d.duration;if(!dragging)pos=d.position;paint()});
+    c.addListener("playback_update",e=>{const d=e.data;paused=d.isPaused;dur=d.duration;if(!dragging)pos=d.position;
+      /* morceau complet : on saute au « moment fort » (≈ 1er refrain, vers 30 % du titre) */
+      if(ctlKind==="t"&&jumpFor!==st.cur&&!d.isPaused&&dur>60000&&pos<5000){jumpFor=st.cur;c.seek(Math.round(dur*0.3/1000))}
+      paint()});
   });
   if(play)wantPlay=true;
 }
