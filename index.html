@@ -280,7 +280,7 @@ const SK="top-tierlist-sp",REDIRECT=location.origin+location.pathname.replace(/i
 let sp={};try{sp=JSON.parse(localStorage.getItem(SK)||"{}")}catch(e){}
 const spSave=()=>{try{localStorage.setItem(SK,JSON.stringify(sp))}catch(e){}};
 const connect=()=>!!(sp.rt&&sp.cid);
-let cUri=null,cBusy=false,adopt=0;
+let cUri=null,cBusy=false;
 const b64u=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 async function spLogin(){
   const cid=$("cid").value.trim();if(!/^[0-9a-f]{32}$/i.test(cid)){toast("Client ID invalide (32 caractères)");return}
@@ -320,33 +320,49 @@ async function spResolve(s){
   }
   if(!best)return null;st.res[s.t]=best.uri;const im=best.album.images&&best.album.images[0];if(im)setCover(s,im.url);save();return best.uri;
 }
-async function cPlay(uri){
-  const dev=await spDevice();
+/* Lecture pilotée. Chaque changement de chanson incrémente cSeq : toute réponse
+   Spotify qui arrive après un changement est ignorée (évite de revenir à la chanson d'avant). */
+let cSeq=0,lastItem=null,cTarget=null;
+const words=t=>norm(t.replace(/\(.*?\)|\[.*?\]| - .*$/g,"")).split(" ").filter(w=>w.length>1);
+function sameSong(name,title){const a=words(name),b=words(title);if(!a.length||!b.length)return false;
+  const hit=b.filter(w=>a.includes(w)).length;return hit>=Math.min(2,b.length)}
+async function cPlay(uri,seq){
+  const dev=await spDevice();if(seq!==cSeq)return false;
   if(!dev){toast("Ouvre l'appli Spotify sur ton téléphone, puis réessaie");return false}
+  cTarget={uri,title:SONGS[st.cur].t,prev:lastItem,at:Date.now(),seq};
   const r=await spApi("/me/player/play?device_id="+dev,{method:"PUT",body:JSON.stringify({uris:[uri]})});
+  if(seq!==cSeq)return false;
   if(r.status===403){toast("Spotify Premium requis");return false}
   if(!r.ok&&r.status!==204){toast("Spotify ne répond pas : ouvre l'appli Spotify puis réessaie");return false}
-  paused=false;adopt=Date.now();paint();return true;
+  paused=false;paint();return true;
 }
 async function cLoad(play){
-  const s=SONGS[st.cur],me=st.cur;
-  if(!s.on){cUri=null;$("playerUI").hidden=true;return}
+  const seq=++cSeq,s=SONGS[st.cur];
+  cUri=null;cTarget=null;dur=0;pos=0;paint();
+  if(!s.on){$("playerUI").hidden=true;return}
   $("playerUI").hidden=false;
   try{
-    const uri=await spResolve(s);if(me!==st.cur)return;
-    if(!uri){cUri=null;$("playerUI").hidden=true;$("pHint").textContent="Introuvable sur Spotify : utilise le lien YouTube.";return}
-    cUri=uri;jumpFor=null;if(play)await cPlay(uri);
-  }catch(e){toast("Connexion Spotify perdue : reconnecte-toi");}
+    const uri=await spResolve(s);if(seq!==cSeq)return;
+    if(!uri){$("playerUI").hidden=true;$("pHint").textContent="Introuvable sur Spotify : utilise le lien YouTube.";return}
+    cUri=uri;if(play)await cPlay(uri,seq);
+  }catch(e){if(seq===cSeq)toast("Connexion Spotify perdue : reconnecte-toi")}
 }
 async function cPoll(){
-  if(!connect()||document.hidden||cBusy||$("viewRate").hidden)return;cBusy=true;
+  if(!connect()||document.hidden||cBusy||$("viewRate").hidden)return;cBusy=true;const seq=cSeq;
   try{const r=await spApi("/me/player");
-    if(r.status===200){const j=await r.json();
-      /* Spotify peut jouer une autre copie du même titre (autre identifiant) : on l'adopte juste après le lancement */
-      if(adopt&&j.item&&j.item.uri!==cUri&&Date.now()-adopt<10000)cUri=j.item.uri;
-      if(j.item&&j.item.uri===cUri){adopt=0;const im=j.item.album&&j.item.album.images&&j.item.album.images[0];if(im)setCover(SONGS[st.cur],im.url);dur=j.item.duration_ms;if(!dragging&&Date.now()-seekAt>1500)pos=j.progress_ms;paused=!j.is_playing;
-        paint()}
-      else if(cUri&&j.item){paused=true;paint()}}
+    if(seq===cSeq&&r.status===200){const j=await r.json();const it=j.item;
+      if(seq===cSeq&&it){
+        /* Spotify peut jouer une autre copie du même titre (autre identifiant) : on l'adopte
+           seulement si ce n'est pas la chanson d'avant et que le nom correspond (ou après 5 s). */
+        if(cTarget&&Date.now()-cTarget.at>15000)cTarget=null;
+        const T=cTarget;
+        if(T&&T.seq===seq&&it.uri!==cUri&&it.uri!==T.prev&&Date.now()-T.at<15000&&(sameSong(it.name,T.title)||Date.now()-T.at>5000))cUri=it.uri;
+        if(it.uri===cUri){cTarget=null;const im=it.album&&it.album.images&&it.album.images[0];if(im)setCover(SONGS[st.cur],im.url);
+          dur=it.duration_ms;if(!dragging&&Date.now()-seekAt>1500)pos=j.progress_ms;paused=!j.is_playing;paint()}
+        else if(!T){paused=true;paint()}
+        if(!T)lastItem=it.uri; else if(!lastItem)lastItem=T.prev;
+      }}
+    else if(seq===cSeq&&r.status===204){paused=true;paint()}
   }catch(e){}cBusy=false;
 }
 let seekAt=0;
@@ -382,8 +398,8 @@ function paint(){
 }
 $("bPlay").onclick=async()=>{
   if(connect()){if(!cUri)return;
-    if(paused){if(dur){paused=false;paint();const r=await spApi("/me/player/play",{method:"PUT"}).catch(()=>null);if(!r||!r.ok&&r.status!==204)cPlay(cUri)}else cPlay(cUri)}
-    else{paused=true;paint();spApi("/me/player/pause",{method:"PUT"}).catch(()=>{})}
+    if(paused){if(dur){paused=false;paint();const r=await spApi("/me/player/play"+(sp.dev?"?device_id="+sp.dev:""),{method:"PUT"}).catch(()=>null);if(!r||!r.ok&&r.status!==204)cPlay(cUri,cSeq)}else if(!cTarget)cPlay(cUri,cSeq)}
+    else{paused=true;paint();spApi("/me/player/pause"+(sp.dev?"?device_id="+sp.dev:""),{method:"PUT"}).catch(()=>{})}
     return}
   if(ctl)ctl.togglePlay()};
 const seekTo=ms=>{if(!dur)return;ms=Math.max(0,Math.min(dur-1000,ms));if(connect())cSeek(ms);else if(ctl)ctl.seek(ms/1000)};
@@ -439,12 +455,13 @@ function renderSong(){
   $("pHint").textContent=hint;$("extLinks").innerHTML=links;
   $("nRated").textContent="("+Object.keys(st.r).length+")";
 }
-$("tierBtns").onclick=e=>{const b=e.target.closest("button[data-t]");if(!b)return;snap(true);rate(SONGS[st.cur].t,b.dataset.t);renderDist();
+let rating=false;
+$("tierBtns").onclick=e=>{const b=e.target.closest("button[data-t]");if(!b||rating)return;snap(true);rate(SONGS[st.cur].t,b.dataset.t);renderDist();
   const n=nextUnrated(st.cur);if(n==null){renderSong();renderList();toast("Tout est noté dans cette sélection !");return}
   toast(SONGS[st.cur].t+" → "+b.dataset.t);b.classList.add("pop");
   if(RM){go(n,true);return}
-  const g=document.querySelector(".stage");g.style.setProperty("--glow",`var(--${b.dataset.t})`);g.classList.add("out");
-  setTimeout(()=>go(n,true),430)};
+  rating=true;const g=document.querySelector(".stage");g.style.setProperty("--glow",`var(--${b.dataset.t})`);g.classList.add("out");
+  setTimeout(()=>{rating=false;go(n,true)},430)};
 function rate(t,tier){st.o=st.o||{};if(tier){if(st.r[t]!==tier)st.o[t]=Date.now();st.r[t]=tier}else{delete st.r[t];delete st.o[t]}save()}
 let undos=[];
 function snap(back){undos.push({r:{...st.r},o:{...(st.o||{})},cur:st.cur,back});if(undos.length>60)undos.shift();paintUndo()}
