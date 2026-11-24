@@ -85,6 +85,29 @@ dialog::backdrop{background:#000a}
 dialog h3{font:900 22px/1.15 Archivo,sans-serif;margin:0 0 4px}
 textarea{width:100%;min-height:120px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px;font:13px/1.4 ui-monospace,monospace}
 .steps{padding-left:20px;margin:8px 0 12px;font-size:15px}.steps li{margin-bottom:8px}.steps a{color:var(--ink)}code{background:var(--bg);padding:2px 6px;border-radius:6px;font-size:13px;overflow-wrap:anywhere}.btn.sm{min-height:32px;padding:4px 10px;font-size:13px}
+.nowcard{position:relative;overflow:hidden;isolation:isolate}
+.nowcard::before{content:"";position:absolute;inset:-40px;background:var(--cov) center/cover;filter:blur(40px) saturate(1.4);opacity:.38;z-index:-1;transition:opacity .5s}
+.nowcard::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#18211e40,#18211ef2 62%);z-index:-1}
+.stage{display:grid;place-items:center;margin:4px 0 14px;perspective:800px}
+.disc{width:min(50vw,240px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;
+background:radial-gradient(circle,#0000 0 30%,#111 30.5%),repeating-radial-gradient(circle,#1a1a1a 0 2px,#0c0c0c 2px 4px);
+box-shadow:0 18px 40px #0009,inset 0 0 0 2px #2a2a2a;position:relative}
+.disc::after{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 30deg,#fff0 0 20%,#ffffff1c 25%,#fff0 32% 70%,#ffffff12 75%,#fff0 82%);pointer-events:none}
+.label{width:58%;aspect-ratio:1;border-radius:50%;background:center/cover no-repeat;display:grid;place-items:center;font:900 22px Archivo,sans-serif;color:#141414;position:relative;box-shadow:0 0 0 3px #0008}
+.label::after{content:"";width:9%;aspect-ratio:1;border-radius:50%;background:var(--bg);box-shadow:0 0 0 2px #0006;position:absolute}
+.disc.spin{animation:spin 4.5s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stage.out .disc{animation:fly .45s cubic-bezier(.5,0,.75,0) forwards}
+@keyframes fly{to{transform:translateY(-60px) scale(.3) rotate(220deg);opacity:0;filter:drop-shadow(0 0 30px var(--glow))}}
+.stage.in .disc{animation:drop .5s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes drop{from{transform:translateX(70%) rotate(120deg) scale(.85);opacity:0}}
+.nowcard .title,.nowcard .meta{transition:opacity .25s,transform .25s}
+.swap .title,.swap .meta{opacity:0;transform:translateY(8px)}
+.tiers button.pop{animation:pop .35s}
+@keyframes pop{40%{transform:scale(1.18)}}
+.item{display:flex;gap:8px;align-items:center}.item img{width:34px;height:34px;border-radius:6px;object-fit:cover;flex:none}
+@media(min-width:900px){.disc{width:260px}}
+@media(prefers-reduced-motion:reduce){.disc.spin,.stage .disc,.tiers button.pop{animation:none!important}}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 [hidden]{display:none!important}
@@ -104,7 +127,8 @@ textarea{width:100%;min-height:120px;background:var(--bg);color:var(--ink);borde
 </header>
 
 <main id="viewRate" class="grid">
-  <section class="card" aria-live="polite">
+  <section class="card nowcard" id="rate" aria-live="polite">
+    <div class="stage"><div class="disc" id="disc"><div class="label" id="label"></div></div></div>
     <div class="meta"><span class="badge" id="cBadge"></span><span id="cSrc"></span></div>
     <h2 class="title" id="cTitle">…</h2>
     <p class="count" id="cCount"></p>
@@ -221,7 +245,19 @@ let jumpFor=null,api=null,ctl=null,ctlKind=null,pos=0,dur=0,paused=true,dragging
 window.onSpotifyIframeApiReady=a=>{api=a;loadPlayer(false)};
 function fmt(ms){const s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
 function uriOf(s){return s.sp?(s.sp[0]==="t"?"spotify:track:":"spotify:album:")+s.sp.slice(2):null}
-const JUMP=0.3; /* moment fort ≈ 1er refrain, vers 30 % du titre */
+/* pochettes (images Spotify) */
+const CDN="https://i.scdn.co/image/ab67616d0000b273";
+const COV_SRC={"Twenty One Pilots":"c349390bd863bf173eb077e9","Vessel":"6caad685af37c08063be928d","Vessel (édition bonus)":"6caad685af37c08063be928d","Vessel (édition live)":"6caad685af37c08063be928d","Blurryface":"2df0d98a423025032d0db1f7","Trench":"d1d301e737da4324479c6660","Scaled and Icy":"7c693d6ed6dff0d48cf15c23","Clancy":"cc94dd4730132ccfbd617bf9","Breach":"9c5a3160cc1a6ef5efdaf80a","Scaled and Icy (Livestream)":"4779225ee34403b3b393ddde","More Than We Ever Imagined":"eb06f482433f7adb145bcab3","Breach: Digital Remains / single":"b5b991fd65053a3acb8c2db2"};
+const COV_T={"Heathens":"2ca3ba8f334ca5a5f0312efb","Level of Concern":"667fc5cfc13eb88927265baa","Christmas Saves the Year":"958829fada56d73a6a35852d","Doubt (demo)":"98e1032a1e26048dd4e3bd52","Chlorine (Alt Mix)":"be69aa8d1c910cea6e4a41c7","The Hype (Alt Mix)":"a71cdbbc060117fcddf76e66","Overcompensate (edit)":"3391c2c087c77ae353dfdb04","The Craving (single version)":"d26fe1e29c8ccb9f5ccb4709","Shy Away (Livestream Version)":"ece01469e9263a14ffdf522a"};
+function coverOf(s){st.cov=st.cov||{};if(st.cov[s.t])return st.cov[s.t];const h=COV_T[s.t]||COV_SRC[s.src];return h?CDN+h:null}
+function setCover(s,url){if(!url||!/^https:\/\/i\.scdn\.co\//.test(url))return;st.cov=st.cov||{};if(st.cov[s.t]===url)return;st.cov[s.t]=url;save();if(SONGS[st.cur]===s)paintCover()}
+const HUES=[350,20,45,95,160,200,230,265,300];
+function hueOf(t){let h=0;for(const c of t)h=(h*31+c.charCodeAt(0))%997;return HUES[h%HUES.length]}
+function paintCover(){
+  const s=SONGS[st.cur],u=coverOf(s),lab=$("label");
+  if(u){lab.style.backgroundImage=`url("${u}")`;lab.textContent="";$("rate").style.setProperty("--cov",`url("${u}")`)}
+  else{const h=hueOf(s.src);lab.style.backgroundImage=`radial-gradient(circle at 50% 50%,hsl(${h} 70% 62%),hsl(${h} 60% 38%))`;lab.textContent=s.src.replace(/\(.*?\)/g,"").split(/[ \/:]+/).filter(Boolean).slice(0,3).map(w=>w[0]).join("").toUpperCase();$("rate").style.setProperty("--cov","none")}
+}
 
 /* --- Mode « appli Spotify » : la page pilote ton appli Spotify (Premium) --- */
 const SK="top-tierlist-sp",REDIRECT=location.origin+location.pathname.replace(/index\.html$/,"");
@@ -266,7 +302,7 @@ async function spResolve(s){
     const n=norm(it.name+" "+it.album.name);const sc=want.filter(w=>n.includes(w)).length-(/commentary/.test(n)?5:0);
     if(sc>bs){bs=sc;best=it}
   }
-  if(!best)return null;st.res[s.t]=best.uri;save();return best.uri;
+  if(!best)return null;st.res[s.t]=best.uri;const im=best.album.images&&best.album.images[0];if(im)setCover(s,im.url);save();return best.uri;
 }
 async function cPlay(uri){
   const dev=await spDevice();
@@ -290,8 +326,7 @@ async function cPoll(){
   if(!connect()||document.hidden||cBusy||$("viewRate").hidden)return;cBusy=true;
   try{const r=await spApi("/me/player");
     if(r.status===200){const j=await r.json();
-      if(j.item&&j.item.uri===cUri){dur=j.item.duration_ms;if(!dragging)pos=j.progress_ms;paused=!j.is_playing;
-        if(jumpFor!==st.cur&&j.is_playing&&dur>60000&&pos<6000){jumpFor=st.cur;cSeek(dur*JUMP)}
+      if(j.item&&j.item.uri===cUri){const im=j.item.album&&j.item.album.images&&j.item.album.images[0];if(im)setCover(SONGS[st.cur],im.url);dur=j.item.duration_ms;if(!dragging)pos=j.progress_ms;paused=!j.is_playing;
         paint()}
       else if(cUri&&j.item){paused=true;paint()}}
   }catch(e){}cBusy=false;
@@ -316,12 +351,12 @@ function loadPlayer(play){
     ctl=c;ctlKind=kind;
     c.addListener("ready",()=>{if(wantPlay||play){wantPlay=false;c.play()}});
     c.addListener("playback_update",e=>{const d=e.data;paused=d.isPaused;dur=d.duration;if(!dragging)pos=d.position;
-      if(ctlKind==="t"&&jumpFor!==st.cur&&!d.isPaused&&dur>60000&&pos<5000){jumpFor=st.cur;c.seek(Math.round(dur*JUMP/1000))}
       paint()});
   });
   if(play)wantPlay=true;
 }
 function paint(){
+  $("disc").classList.toggle("spin",!paused);
   $("tPos").textContent=fmt(pos);$("tDur").textContent=fmt(dur);
   if(!dragging)$("seek").value=dur?Math.round(pos/dur*1000):0;
   $("icoPlay").innerHTML=paused?'<path d="M8 5v14l11-7z"/>':'<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>';
@@ -357,10 +392,12 @@ setTimeout(async()=>{const p=new URLSearchParams(location.search);
   renderSp();renderSong();loadPlayer(false);},0);
 
 /* ---------- vue notation ---------- */
-function go(i,play,back){if(!back&&st.cur!==i)hist.push(st.cur);st.cur=i;save();renderSong();loadPlayer(play);renderList()}
+function go(i,play,back){if(!back&&st.cur!==i)hist.push(st.cur);const ch=st.cur!==i;st.cur=i;save();renderSong();loadPlayer(play);renderList();if(ch)animIn()}
+function animIn(){const g=document.querySelector(".stage"),c=$("rate");g.classList.remove("out","in");c.classList.add("swap");void g.offsetWidth;g.classList.add("in");requestAnimationFrame(()=>requestAnimationFrame(()=>c.classList.remove("swap")));setTimeout(()=>g.classList.remove("in"),520)}
+const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
 function renderSong(){
   const s=SONGS[st.cur];
-  $("cTitle").textContent=s.t;$("cBadge").textContent=CAT1[s.c];$("cSrc").textContent=s.src+" · "+s.y;
+  paintCover();$("cTitle").textContent=s.t;$("cBadge").textContent=CAT1[s.c];$("cSrc").textContent=s.src+" · "+s.y;
   const done=queue.filter(x=>st.r[x.t]).length;
   $("cCount").textContent=done+" / "+queue.length+" notées dans la sélection";
   $("tierBtns").innerHTML=TIERS.map(t=>`<button data-t="${t}" style="background:var(--${t})" class="${st.r[s.t]===t?"on":""}" aria-label="Classer en ${t}">${t}</button>`).join("");
@@ -368,7 +405,7 @@ function renderSong(){
   const yt=s.yt||"https://www.youtube.com/results?search_query="+q;
   let links="",hint="";
   if(connect()&&s.on){
-    hint="Morceau complet dans ton appli Spotify (garde-la ouverte en arrière-plan). Démarre au moment fort.";
+    hint="Morceau complet dans ton appli Spotify (garde-la ouverte en arrière-plan).";
     links=`<a class="btn ghost" href="${esc(yt)}" target="_blank" rel="noopener">YouTube</a>`;
   }else if(!s.sp){
     hint=s.on?"Pas de lecteur intégré pour cette version : ouvre-la dans Spotify ou sur YouTube, puis note-la ici.":"Pas sur Spotify : écoute-la sur YouTube, puis reviens la noter.";
@@ -385,7 +422,10 @@ function renderSong(){
 }
 $("tierBtns").onclick=e=>{const b=e.target.closest("button[data-t]");if(!b)return;rate(SONGS[st.cur].t,b.dataset.t);
   const n=nextUnrated(st.cur);if(n==null){renderSong();renderList();toast("Tout est noté dans cette sélection !");return}
-  toast(SONGS[st.cur].t+" → "+b.dataset.t);go(n,true)};
+  toast(SONGS[st.cur].t+" → "+b.dataset.t);b.classList.add("pop");
+  if(RM){go(n,true);return}
+  const g=document.querySelector(".stage");g.style.setProperty("--glow",`var(--${b.dataset.t})`);g.classList.add("out");
+  setTimeout(()=>go(n,true),430)};
 function rate(t,tier){if(tier)st.r[t]=tier;else delete st.r[t];save()}
 
 function renderChips(){
@@ -411,7 +451,7 @@ function renderBoard(){
   const all=Object.keys(st.r).length;
   $("stats").innerHTML=`<div><b>${all}</b>notées</div><div><b>${SONGS.length-all}</b>restantes</div>`+TIERS.map(t=>`<div><b style="color:var(--${t})">${Object.values(st.r).filter(x=>x===t).length}</b>${t}</div>`).join("");
   $("board").innerHTML=TIERS.map(t=>{const it=SONGS.filter(s=>st.r[s.t]===t);
-    return `<div class="tier"><div class="lab" style="background:var(--${t})">${t}</div><div class="items">${it.length?it.map(s=>`<button class="item" data-i="${s.i}">${esc(s.t)}<small>${esc(s.src)}</small></button>`).join(""):'<span class="empty">—</span>'}</div></div>`}).join("");
+    return `<div class="tier"><div class="lab" style="background:var(--${t})">${t}</div><div class="items">${it.length?it.map(s=>`<button class="item" data-i="${s.i}">${coverOf(s)?`<img src="${esc(coverOf(s))}" alt="" loading="lazy">`:""}<span>${esc(s.t)}<small>${esc(s.src)}</small></span></button>`).join(""):'<span class="empty">—</span>'}</div></div>`}).join("");
   $("nRated").textContent="("+all+")";
 }
 $("board").onclick=e=>{const b=e.target.closest("[data-i]");if(!b)return;sel=SONGS[+b.dataset.i];
