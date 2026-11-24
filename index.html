@@ -84,6 +84,7 @@ dialog{border:1px solid var(--line);border-radius:18px;background:var(--panel);c
 dialog::backdrop{background:#000a}
 dialog h3{font:900 22px/1.15 Archivo,sans-serif;margin:0 0 4px}
 textarea{width:100%;min-height:120px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px;font:13px/1.4 ui-monospace,monospace}
+.steps{padding-left:20px;margin:8px 0 12px;font-size:15px}.steps li{margin-bottom:8px}.steps a{color:var(--ink)}code{background:var(--bg);padding:2px 6px;border-radius:6px;font-size:13px;overflow-wrap:anywhere}.btn.sm{min-height:32px;padding:4px 10px;font-size:13px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 [hidden]{display:none!important}
@@ -95,6 +96,7 @@ textarea{width:100%;min-height:120px;background:var(--bg);color:var(--ink);borde
 <div class="wrap">
 <header>
   <h1>twenty one pilots · tierlist</h1>
+  <button class="btn ghost" id="bSp" aria-label="Réglages Spotify"><span id="spDot" style="width:10px;height:10px;border-radius:50%;background:var(--mute)"></span>Spotify</button>
   <div class="tabs" role="tablist">
     <button role="tab" id="tabRate" aria-selected="true">Écouter &amp; noter</button>
     <button role="tab" id="tabBoard" aria-selected="false">Tierlist <span id="nRated"></span></button>
@@ -146,6 +148,26 @@ textarea{width:100%;min-height:120px;background:var(--bg);color:var(--ink);borde
   </div>
 </main>
 </div>
+
+<dialog id="dSp">
+  <h3>Morceaux complets</h3>
+  <div id="spOff">
+    <p class="hint">L'appli pilote ton appli Spotify (Premium requis). À faire une seule fois :</p>
+    <ol class="steps">
+      <li>Sur <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a>, connecte-toi puis « Create app ».</li>
+      <li>Nom : <b>Tierlist TOP</b>, description : <b>perso</b>. Dans « Redirect URIs », colle exactement :<br><code id="redir"></code> <button class="btn ghost sm" id="copyRedir">Copier</button></li>
+      <li>Coche <b>Web API</b>, accepte les conditions, « Save ».</li>
+      <li>Ouvre « Settings », copie le <b>Client ID</b> et colle-le ici :</li>
+    </ol>
+    <input class="search" id="cid" placeholder="Client ID (32 caractères)" autocomplete="off" spellcheck="false">
+    <div class="links"><button class="btn red" id="spGo">Connecter Spotify</button></div>
+  </div>
+  <div id="spOn" hidden>
+    <p class="hint">Connecté ✓ La musique sort de ton appli Spotify : ouvre-la au moins une fois sur ton téléphone pour qu'il soit détecté.</p>
+    <div class="links"><button class="btn ghost" id="spOut">Déconnecter</button></div>
+  </div>
+  <div class="links"><button class="btn ghost" id="spClose">Fermer</button></div>
+</dialog>
 
 <dialog id="dItem">
   <h3 id="dTitle"></h3>
@@ -199,10 +221,90 @@ let jumpFor=null,api=null,ctl=null,ctlKind=null,pos=0,dur=0,paused=true,dragging
 window.onSpotifyIframeApiReady=a=>{api=a;loadPlayer(false)};
 function fmt(ms){const s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
 function uriOf(s){return s.sp?(s.sp[0]==="t"?"spotify:track:":"spotify:album:")+s.sp.slice(2):null}
+const JUMP=0.3; /* moment fort ≈ 1er refrain, vers 30 % du titre */
+
+/* --- Mode « appli Spotify » : la page pilote ton appli Spotify (Premium) --- */
+const SK="top-tierlist-sp",REDIRECT=location.origin+location.pathname.replace(/index\.html$/,"");
+let sp={};try{sp=JSON.parse(localStorage.getItem(SK)||"{}")}catch(e){}
+const spSave=()=>{try{localStorage.setItem(SK,JSON.stringify(sp))}catch(e){}};
+const connect=()=>!!(sp.rt&&sp.cid);
+let cUri=null,cBusy=false;
+const b64u=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+async function spLogin(){
+  const cid=$("cid").value.trim();if(!/^[0-9a-f]{32}$/i.test(cid)){toast("Client ID invalide (32 caractères)");return}
+  const v=b64u(crypto.getRandomValues(new Uint8Array(48)));
+  const ch=b64u(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)));
+  sp={cid,v};spSave();
+  location.href="https://accounts.spotify.com/authorize?"+new URLSearchParams({response_type:"code",client_id:cid,scope:"user-read-playback-state user-modify-playback-state",redirect_uri:REDIRECT,code_challenge_method:"S256",code_challenge:ch});
+}
+async function spToken(body){
+  const r=await fetch("https://accounts.spotify.com/api/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams(Object.assign({client_id:sp.cid},body))});
+  const j=await r.json();if(!r.ok)throw new Error(j.error_description||j.error||"token");
+  sp.at=j.access_token;if(j.refresh_token)sp.rt=j.refresh_token;sp.exp=Date.now()+(j.expires_in-60)*1000;delete sp.v;spSave();
+}
+async function spApi(path,opt={},retry=true){
+  if(!sp.at||Date.now()>sp.exp)await spToken({grant_type:"refresh_token",refresh_token:sp.rt});
+  const r=await fetch("https://api.spotify.com/v1"+path,Object.assign({},opt,{headers:Object.assign({Authorization:"Bearer "+sp.at},opt.body?{"Content-Type":"application/json"}:{})}));
+  if(r.status===401&&retry){sp.exp=0;return spApi(path,opt,false)}
+  return r;
+}
+async function spDevice(){
+  const j=await (await spApi("/me/player/devices")).json();const d=j.devices||[];
+  const x=d.find(z=>z.is_active)||d.find(z=>z.id===sp.dev)||d.find(z=>z.type==="Smartphone")||d[0];
+  if(x){sp.dev=x.id;spSave()}return x&&x.id;
+}
+const norm=t=>t.toLowerCase().replace(/[’']/g,"'").replace(/[^a-z0-9' ]+/g," ").replace(/\s+/g," ").trim();
+async function spResolve(s){
+  if(s.sp&&s.sp[0]==="t")return "spotify:track:"+s.sp.slice(2);
+  st.res=st.res||{};if(st.res[s.t])return st.res[s.t];
+  const q=norm(s.t.replace(/ - /g," "))+" twenty one pilots";
+  const j=await (await spApi("/search?type=track&limit=10&q="+encodeURIComponent(q))).json();
+  const want=norm(s.t).split(" ").filter(w=>w.length>2);
+  let best=null,bs=-1;
+  for(const it of (j.tracks&&j.tracks.items)||[]){
+    if(!it.artists.some(a=>/twenty one pilots/i.test(a.name)))continue;
+    const n=norm(it.name+" "+it.album.name);const sc=want.filter(w=>n.includes(w)).length-(/commentary/.test(n)?5:0);
+    if(sc>bs){bs=sc;best=it}
+  }
+  if(!best)return null;st.res[s.t]=best.uri;save();return best.uri;
+}
+async function cPlay(uri){
+  const dev=await spDevice();
+  if(!dev){toast("Ouvre l'appli Spotify sur ton téléphone, puis réessaie");return false}
+  const r=await spApi("/me/player/play?device_id="+dev,{method:"PUT",body:JSON.stringify({uris:[uri]})});
+  if(r.status===403){toast("Spotify Premium requis");return false}
+  if(!r.ok&&r.status!==204){toast("Spotify ne répond pas : ouvre l'appli Spotify puis réessaie");return false}
+  paused=false;paint();return true;
+}
+async function cLoad(play){
+  const s=SONGS[st.cur],me=st.cur;
+  if(!s.on){cUri=null;$("playerUI").hidden=true;return}
+  $("playerUI").hidden=false;
+  try{
+    const uri=await spResolve(s);if(me!==st.cur)return;
+    if(!uri){cUri=null;$("playerUI").hidden=true;$("pHint").textContent="Introuvable sur Spotify : utilise le lien YouTube.";return}
+    cUri=uri;jumpFor=null;if(play)await cPlay(uri);
+  }catch(e){toast("Connexion Spotify perdue : reconnecte-toi");}
+}
+async function cPoll(){
+  if(!connect()||document.hidden||cBusy||$("viewRate").hidden)return;cBusy=true;
+  try{const r=await spApi("/me/player");
+    if(r.status===200){const j=await r.json();
+      if(j.item&&j.item.uri===cUri){dur=j.item.duration_ms;if(!dragging)pos=j.progress_ms;paused=!j.is_playing;
+        if(jumpFor!==st.cur&&j.is_playing&&dur>60000&&pos<6000){jumpFor=st.cur;cSeek(dur*JUMP)}
+        paint()}
+      else if(cUri&&j.item){paused=true;paint()}}
+  }catch(e){}cBusy=false;
+}
+function cSeek(ms){pos=ms;paint();spApi("/me/player/seek?position_ms="+Math.round(ms),{method:"PUT"}).catch(()=>{})}
+setInterval(cPoll,1000);
+
 function loadPlayer(play){
-  const s=SONGS[st.cur];const uri=uriOf(s);const kind=s.sp?s.sp[0]:null;
-  $("playerUI").hidden=kind!=="t";
+  const s=SONGS[st.cur];
   pos=0;dur=0;paused=true;paint();
+  if(connect()){$("embedBox").hidden=true;if(ctl){try{ctl.pause()}catch(e){}}cLoad(play);return}
+  const uri=uriOf(s);const kind=s.sp?s.sp[0]:null;
+  $("playerUI").hidden=kind!=="t";
   if(!uri){if(ctl){$("embedBox").hidden=true;try{ctl.pause()}catch(e){}}return}
   $("embedBox").hidden=false;
   if(!api)return;
@@ -214,8 +316,7 @@ function loadPlayer(play){
     ctl=c;ctlKind=kind;
     c.addListener("ready",()=>{if(wantPlay||play){wantPlay=false;c.play()}});
     c.addListener("playback_update",e=>{const d=e.data;paused=d.isPaused;dur=d.duration;if(!dragging)pos=d.position;
-      /* morceau complet : on saute au « moment fort » (≈ 1er refrain, vers 30 % du titre) */
-      if(ctlKind==="t"&&jumpFor!==st.cur&&!d.isPaused&&dur>60000&&pos<5000){jumpFor=st.cur;c.seek(Math.round(dur*0.3/1000))}
+      if(ctlKind==="t"&&jumpFor!==st.cur&&!d.isPaused&&dur>60000&&pos<5000){jumpFor=st.cur;c.seek(Math.round(dur*JUMP/1000))}
       paint()});
   });
   if(play)wantPlay=true;
@@ -225,13 +326,35 @@ function paint(){
   if(!dragging)$("seek").value=dur?Math.round(pos/dur*1000):0;
   $("icoPlay").innerHTML=paused?'<path d="M8 5v14l11-7z"/>':'<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>';
 }
-$("bPlay").onclick=()=>{if(!ctl)return;ctl.togglePlay()};
-$("bBack").onclick=()=>{if(ctl)ctl.seek(Math.max(0,pos/1000-10))};
-$("bFwd").onclick=()=>{if(ctl)ctl.seek(Math.min(dur/1000,pos/1000+10))};
+$("bPlay").onclick=async()=>{
+  if(connect()){if(!cUri)return;
+    if(paused){if(dur){paused=false;paint();const r=await spApi("/me/player/play",{method:"PUT"}).catch(()=>null);if(!r||!r.ok&&r.status!==204)cPlay(cUri)}else cPlay(cUri)}
+    else{paused=true;paint();spApi("/me/player/pause",{method:"PUT"}).catch(()=>{})}
+    return}
+  if(ctl)ctl.togglePlay()};
+const seekTo=ms=>{if(connect())cSeek(ms);else if(ctl)ctl.seek(ms/1000)};
+$("bBack").onclick=()=>seekTo(Math.max(0,pos-10000));
+$("bFwd").onclick=()=>seekTo(Math.min(dur-1000,pos+10000));
 $("seek").oninput=()=>{dragging=true;pos=$("seek").value/1000*dur;$("tPos").textContent=fmt(pos)};
-$("seek").onchange=()=>{dragging=false;if(ctl)ctl.seek(pos/1000)};
+$("seek").onchange=()=>{dragging=false;seekTo(pos)};
 $("bNext").onclick=()=>{const q=queue,k=q.findIndex(s=>s.i===st.cur);go(q[(k+1)%q.length].i,true)};
 $("bPrev").onclick=()=>{const p=hist.pop();if(p!=null)go(p,true,true);else{const q=queue,k=q.findIndex(s=>s.i===st.cur);go(q[(k-1+q.length)%q.length].i,true,true)}};
+
+/* réglages Spotify */
+function renderSp(){
+  const on=connect();$("spDot").style.background=on?"#1ed760":"var(--mute)";
+  $("spOff").hidden=on;$("spOn").hidden=!on;$("redir").textContent=REDIRECT;if(sp.cid)$("cid").value=sp.cid;
+}
+$("bSp").onclick=()=>{renderSp();$("dSp").showModal()};
+$("spClose").onclick=()=>$("dSp").close();
+$("spGo").onclick=spLogin;
+$("spOut").onclick=()=>{sp={cid:sp.cid};spSave();renderSp();loadPlayer(false);renderSong();toast("Déconnecté")};
+$("copyRedir").onclick=async()=>{try{await navigator.clipboard.writeText(REDIRECT);toast("Adresse copiée")}catch(e){toast("Copie-la à la main")}};
+setTimeout(async()=>{const p=new URLSearchParams(location.search);
+  if(p.get("code")&&sp.v){try{await spToken({grant_type:"authorization_code",code:p.get("code"),redirect_uri:REDIRECT,code_verifier:sp.v});toast("Spotify connecté ✓")}catch(e){toast("Échec de connexion : "+e.message)}}
+  else if(p.get("error"))toast("Connexion Spotify refusée");
+  if(p.has("code")||p.has("error"))history.replaceState(null,"",location.pathname+location.hash);
+  renderSp();renderSong();loadPlayer(false);},0);
 
 /* ---------- vue notation ---------- */
 function go(i,play,back){if(!back&&st.cur!==i)hist.push(st.cur);st.cur=i;save();renderSong();loadPlayer(play);renderList()}
@@ -244,7 +367,10 @@ function renderSong(){
   const q=encodeURIComponent("twenty one pilots "+s.t.replace(/\(.*?\)/g,m=>/feat|live|remix|version|demo|mix|mutemath/i.test(m)?m:""));
   const yt=s.yt||"https://www.youtube.com/results?search_query="+q;
   let links="",hint="";
-  if(!s.sp){
+  if(connect()&&s.on){
+    hint="Morceau complet dans ton appli Spotify (garde-la ouverte en arrière-plan). Démarre au moment fort.";
+    links=`<a class="btn ghost" href="${esc(yt)}" target="_blank" rel="noopener">YouTube</a>`;
+  }else if(!s.sp){
     hint=s.on?"Pas de lecteur intégré pour cette version : ouvre-la dans Spotify ou sur YouTube, puis note-la ici.":"Pas sur Spotify : écoute-la sur YouTube, puis reviens la noter.";
     links=`<a class="btn red" href="${esc(yt)}" target="_blank" rel="noopener">▶ Écouter sur YouTube</a>`+(s.on?`<a class="btn" href="https://open.spotify.com/search/${q}" target="_blank" rel="noopener">Chercher sur Spotify</a>`:"");
   }else if(s.sp[0]==="a"){
