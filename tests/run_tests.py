@@ -250,7 +250,7 @@ def sans_avis_passe_sans_entrer_dans_la_tierlist(pw):
 @test
 def remix_externes_retires_et_anciennes_notes_nettoyees(pw):
     titres = [x[0] for x in SONGS]
-    for t in ["Lane Boy (DJ Premier Remix)", "Stressed Out (Tomsize Remix)", "Heathens (DISTO Remix)"]:
+    for t in ["Lane Boy (DJ Premier Remix)", "Stressed Out (Tomsize Remix)", "Heathens (DISTO Remix)", "Heathens (feat. MUTEMATH)", "Ride (feat. MUTEMATH)"]:
         check(t not in titres, f"{t} est encore dans le catalogue")
     b = pw["browser"]; ctx = b.new_context(viewport={"width": 390, "height": 844}); p = ctx.new_page()
     p.route("https://**", lambda r: r.abort() if "127.0.0.1" not in r.request.url else r.continue_())
