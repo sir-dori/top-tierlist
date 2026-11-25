@@ -254,6 +254,8 @@ const K="top-tierlist-v1";
 let st={r:{},cats:["A","S","V","L","R","I","T"],order:"chrono",hide:true,cur:0,seed:Math.random()};
 try{const s=JSON.parse(localStorage.getItem(K)||"null");if(s)st=Object.assign(st,s)}catch(e){}
 const save=()=>{try{localStorage.setItem(K,JSON.stringify(st))}catch(e){}};
+/* notes de chansons retirées du catalogue : on les oublie */
+{const known=new Set(window.SONGS.map(s=>s[0]));for(const k of Object.keys(st.r))if(!known.has(k)){delete st.r[k];if(st.o)delete st.o[k]}}
 let queue=[],hist=[];
 
 function toast(m){const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),1600)}

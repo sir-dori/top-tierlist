@@ -247,6 +247,18 @@ def sans_avis_passe_sans_entrer_dans_la_tierlist(pw):
     check(p.locator('#board .items[data-tier="X"] .item').count() == 1, "annuler ne la remet pas en « sans avis »")
     check(not errs, errs); ctx.close()
 
+@test
+def remix_externes_retires_et_anciennes_notes_nettoyees(pw):
+    titres = [x[0] for x in SONGS]
+    for t in ["Lane Boy (DJ Premier Remix)", "Stressed Out (Tomsize Remix)", "Heathens (DISTO Remix)"]:
+        check(t not in titres, f"{t} est encore dans le catalogue")
+    b = pw["browser"]; ctx = b.new_context(viewport={"width": 390, "height": 844}); p = ctx.new_page()
+    p.route("https://**", lambda r: r.abort() if "127.0.0.1" not in r.request.url else r.continue_())
+    p.add_init_script("if(!sessionStorage.x){sessionStorage.x=1;localStorage.setItem('top-tierlist-v1',JSON.stringify({r:{'Stressed Out (Tomsize Remix)':'S','Fall Away':'A'}}))}")
+    p.goto(URL); p.wait_for_timeout(500)
+    check(p.inner_text("#nRated") == "(1)", "une note d'un titre retiré est encore comptée")
+    ctx.close()
+
 ANDROID_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36"
 def goto_song(p, name):
     p.fill("#q", name); p.click("#list button"); p.wait_for_timeout(400); p.fill("#q", "")
