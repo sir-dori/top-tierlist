@@ -80,6 +80,7 @@ h2{font:700 18px/1.2 Archivo,sans-serif;margin:0 0 12px}
 .ghost{opacity:.35}.chosen{box-shadow:0 8px 24px #000a;transform:scale(1.04)}
 .countrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 14px}.countrow .count{margin:0}
 .undo{border:1px solid var(--line);border-radius:999px;padding:6px 14px;min-height:38px;font-size:14px;font-weight:600;white-space:nowrap}
+.reset{color:var(--acc);border-color:#e5484d66}
 .undo:disabled{opacity:.35;cursor:default}
 .dist{margin:-8px 0 14px}
 .tiers button.skip{grid-column:1/-1;aspect-ratio:auto;max-height:none;min-height:44px;font:600 15px Inter,sans-serif;color:var(--mute);background:none;border:1px dashed var(--line);border-radius:12px}
@@ -177,7 +178,7 @@ box-shadow:0 18px 40px #0009,inset 0 0 0 2px #2a2a2a;position:relative}
 </main>
 
 <main id="viewBoard" hidden>
-  <div class="row" style="margin:0 0 10px"><div class="stats" id="stats"></div><button class="undo" id="bUndo2" disabled>↶ Annuler</button></div>
+  <div class="row" style="margin:0 0 10px"><div class="stats" id="stats"></div><div class="links" style="margin:0"><button class="undo" id="bUndo2" disabled>↶ Annuler</button><button class="undo reset" id="bReset2">↺ Recommencer</button></div></div>
   <div class="card" style="padding:14px 14px 8px;margin-bottom:14px"><div class="dist big" id="dist2"></div></div>
   <p class="hint" style="margin:0 0 10px">Maintiens une chanson puis fais-la glisser pour la déplacer. Touche-la pour plus d’options.</p>
   <div class="board" id="board"></div>
@@ -186,7 +187,7 @@ box-shadow:0 18px 40px #0009,inset 0 0 0 2px #2a2a2a;position:relative}
       <button class="btn" id="bCopy">Copier en texte</button>
       <button class="btn ghost" id="bSave">Sauvegarder / transférer</button>
     </div>
-    <button class="btn ghost" id="bReset">Tout effacer</button>
+    <button class="btn ghost reset" id="bReset">↺ Recommencer à zéro</button>
   </div>
 </main>
 </div>
@@ -233,9 +234,9 @@ box-shadow:0 18px 40px #0009,inset 0 0 0 2px #2a2a2a;position:relative}
 </dialog>
 
 <dialog id="dConfirm">
-  <h3>Tout effacer ?</h3>
-  <p class="hint">Toutes tes notes seront supprimées de ce navigateur.</p>
-  <div class="links"><button class="btn red" id="bYes">Effacer</button><button class="btn ghost" id="bNo">Annuler</button></div>
+  <h3>Recommencer à zéro ?</h3>
+  <p class="hint">Toute ta tierlist (notes et « sans avis ») sera vidée et tu repartiras de la première chanson. Tu pourras encore revenir en arrière juste après avec ↶ Annuler.</p>
+  <div class="links"><button class="btn red" id="bYes">Tout recommencer</button><button class="btn ghost" id="bNo">Annuler</button></div>
 </dialog>
 
 <div class="toast" id="toast"></div>
@@ -559,7 +560,9 @@ $("bImport").onclick=()=>{try{snap(false);const o=JSON.parse($("saveTxt").value)
 $("bCloseSave").onclick=()=>$("dSaveBox").close();
 $("bReset").onclick=()=>$("dConfirm").showModal();
 $("bNo").onclick=()=>$("dConfirm").close();
-$("bYes").onclick=()=>{snap(false);st.r={};st.o={};save();$("dConfirm").close();renderBoard();renderSong();renderList();toast("Notes effacées")};
+$("bYes").onclick=()=>{snap(true);st.r={};st.o={};hist=[];save();$("dConfirm").close();renderBoard();
+  st.cur=queue[0].i;save();show("rate");go(st.cur,false,true);toast("Tierlist remise à zéro")};
+$("bReset2").onclick=()=>$("dConfirm").showModal();
 
 function show(v){const r=v==="rate";$("viewRate").hidden=!r;$("viewBoard").hidden=r;$("tabRate").setAttribute("aria-selected",r);$("tabBoard").setAttribute("aria-selected",!r);
   if(!r)renderBoard();if(location.hash!==(r?"":"#tierlist"))history.replaceState(null,"",r?location.pathname:"#tierlist")}

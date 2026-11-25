@@ -266,6 +266,27 @@ def liste_des_chansons_jamais_en_cache_perime(pw):
     h = hashlib.md5(open(os.path.join(ROOT, "songs.js"), "rb").read()).hexdigest()[:8]
     check(f'songs.js?v={h}' in open(os.path.join(ROOT, "index.html"), encoding="utf-8").read(), "index.html ne pointe pas sur la dernière version de songs.js")
 
+@test
+def recommencer_a_zero_puis_annuler(pw):
+    p, f, errs, ctx = open_app(pw)
+    for t in "SAX": rate(p, t)
+    p.click("#tabBoard"); p.wait_for_timeout(300)
+    p.click("#bReset2"); p.wait_for_timeout(200); p.click("#bYes"); p.wait_for_timeout(700)
+    check(not p.is_hidden("#viewRate"), "après remise à zéro on doit revenir à l'écoute")
+    check(title(p) == S1[0], f"on doit repartir de la 1re chanson, vu {title(p)}")
+    check(p.inner_text("#nRated") == "(0)", "des notes restent après la remise à zéro")
+    st = p.evaluate("JSON.parse(localStorage.getItem('top-tierlist-v1')).r")
+    check(st == {}, f"« sans avis » non effacés : {st}")
+    p.reload(); p.wait_for_timeout(500)
+    check(p.inner_text("#nRated") == "(0)", "les notes reviennent après rechargement")
+    ctx.close()
+    p, f, errs, ctx = open_app(pw)
+    rate(p, "S"); rate(p, "B")
+    p.click("#tabBoard"); p.wait_for_timeout(300); p.click("#bReset"); p.click("#bYes"); p.wait_for_timeout(700)
+    p.click("#bUndo"); p.wait_for_timeout(700)
+    check(p.inner_text("#nRated") == "(2)", "annuler ne restaure pas la tierlist effacée")
+    check(not errs, errs); ctx.close()
+
 ANDROID_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36"
 def goto_song(p, name):
     p.fill("#q", name); p.click("#list button"); p.wait_for_timeout(400); p.fill("#q", "")
