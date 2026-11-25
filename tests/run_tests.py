@@ -228,6 +228,25 @@ def notes_conservees_apres_rechargement(pw):
     check(p.inner_text("#nRated") == "(1)", "les notes ont disparu au rechargement")
     ctx.close()
 
+@test
+def sans_avis_passe_sans_entrer_dans_la_tierlist(pw):
+    p, f, errs, ctx = open_app(pw)
+    rate(p, "X")
+    check(title(p) == S2[0], f"« sans avis » doit passer à {S2[0]}, vu {title(p)}")
+    check(p.inner_text("#nRated") == "(0)", "« sans avis » ne doit pas compter comme une note")
+    check(all(p.inner_text(f"#dist .dlab span:nth-child({i}) b") == "0" for i in range(1, 7)), "la courbe compte une chanson sans avis")
+    check("1 sans avis" in p.inner_text("#cCount"), "compteur « sans avis » absent")
+    rate(p, "A")
+    p.click("#tabBoard"); p.wait_for_timeout(300)
+    check(p.locator('#board .items[data-tier="X"] .item').count() == 1, "la chanson sans avis n'est pas rangée à part")
+    check(p.locator('#board .items[data-tier="A"] .item').count() == 1, "la note A manque")
+    # on peut la noter plus tard depuis la tierlist
+    p.locator('#board .items[data-tier="X"] .item').first.click(); p.click('#dTiers [data-t="S"]'); p.wait_for_timeout(300)
+    check(p.locator('#board .items[data-tier="S"] .item').count() == 1 and p.locator('#board .items[data-tier="X"] .item').count() == 0, "impossible de noter ensuite une chanson sans avis")
+    p.click("#bUndo2"); p.wait_for_timeout(300)
+    check(p.locator('#board .items[data-tier="X"] .item').count() == 1, "annuler ne la remet pas en « sans avis »")
+    check(not errs, errs); ctx.close()
+
 ANDROID_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36"
 def goto_song(p, name):
     p.fill("#q", name); p.click("#list button"); p.wait_for_timeout(400); p.fill("#q", "")

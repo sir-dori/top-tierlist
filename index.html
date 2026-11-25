@@ -13,7 +13,7 @@
    PICTURE: le titre énorme + six cases de couleur S→E, le lecteur juste dessous
    COLOUR and TYPE: nuit vert-noir, crème, accent rouge ; couleurs tiermaker classiques ; Archivo 900 + Inter
    LAYOUT: une colonne au téléphone, deux colonnes (morceau | file) au-delà de 900px */
-:root{--bg:#101614;--panel:#18211e;--line:#26332e;--ink:#efe9dc;--mute:#9aa59f;--acc:#e5484d;
+:root{--X:#3a4541;--bg:#101614;--panel:#18211e;--line:#26332e;--ink:#efe9dc;--mute:#9aa59f;--acc:#e5484d;
 --S:#ff7f7f;--A:#ffbf7f;--B:#ffdf7f;--C:#bfff7f;--D:#7fbfff;--E:#bf7fff;color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
@@ -82,6 +82,9 @@ h2{font:700 18px/1.2 Archivo,sans-serif;margin:0 0 12px}
 .undo{border:1px solid var(--line);border-radius:999px;padding:6px 14px;min-height:38px;font-size:14px;font-weight:600;white-space:nowrap}
 .undo:disabled{opacity:.35;cursor:default}
 .dist{margin:-8px 0 14px}
+.tiers button.skip{grid-column:1/-1;aspect-ratio:auto;max-height:none;min-height:44px;font:600 15px Inter,sans-serif;color:var(--mute);background:none;border:1px dashed var(--line);border-radius:12px}
+.tiers button.skip.on{color:var(--ink);border-style:solid}
+.labx{font:700 13px/1.15 Inter,sans-serif!important;color:var(--ink)!important;text-align:center}
 .dist svg{display:block;width:100%;height:56px;overflow:visible}
 .dist.big svg{height:120px}
 .dlab{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;text-align:center;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums;line-height:1.25}
@@ -90,7 +93,7 @@ h2{font:700 18px/1.2 Archivo,sans-serif;margin:0 0 12px}
 .item{background:var(--ink);color:#141414;border-radius:8px;padding:7px 10px;font-size:14px;font-weight:600;line-height:1.25;max-width:100%;text-align:left;overflow-wrap:anywhere}
 .item small{display:block;font-weight:500;color:#555;font-size:12px}
 .empty{color:var(--mute);font-size:14px;padding:6px}
-.stats{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 14px;color:var(--mute);font-size:14px}
+.stats{display:flex;gap:8px 14px;flex-wrap:wrap;margin:0 0 14px;color:var(--mute);font-size:14px}
 .stats b{color:var(--ink);font:900 22px Archivo,sans-serif;display:block}
 dialog{border:1px solid var(--line);border-radius:18px;background:var(--panel);color:var(--ink);padding:20px;width:min(440px,92vw)}
 dialog::backdrop{background:#000a}
@@ -451,9 +454,10 @@ const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
 function renderSong(){
   const s=SONGS[st.cur];
   paintCover();$("cTitle").textContent=s.t;$("cBadge").textContent=CAT1[s.c];$("cSrc").textContent=s.src+" · "+s.y;
-  const done=queue.filter(x=>st.r[x.t]).length;
-  $("cCount").textContent=done+" / "+queue.length+" notées dans la sélection";
-  $("tierBtns").innerHTML=TIERS.map(t=>`<button data-t="${t}" style="background:var(--${t})" class="${st.r[s.t]===t?"on":""}" aria-label="Classer en ${t}">${t}</button>`).join("");
+  const done=queue.filter(x=>st.r[x.t]&&st.r[x.t]!=="X").length,sk=queue.filter(x=>st.r[x.t]==="X").length;
+  $("cCount").textContent=done+" / "+queue.length+" notées"+(sk?" · "+sk+" sans avis":"");
+  $("tierBtns").innerHTML=TIERS.map(t=>`<button data-t="${t}" style="background:var(--${t})" class="${st.r[s.t]===t?"on":""}" aria-label="Classer en ${t}">${t}</button>`).join("")
+    +`<button data-t="X" class="skip ${st.r[s.t]==="X"?"on":""}">Sans avis · passer</button>`;
   const q=encodeURIComponent("twenty one pilots "+s.t.replace(/\(.*?\)/g,m=>/feat|live|remix|version|demo|mix|mutemath/i.test(m)?m:""));
   const yt=s.yt||"https://www.youtube.com/results?search_query="+q;
   const ya=(label,cls)=>ytA(yt,label,cls);
@@ -472,15 +476,16 @@ function renderSong(){
     links=`<a class="btn ghost" href="https://open.spotify.com/track/${esc(s.sp.slice(2))}" target="_blank" rel="noopener">Ouvrir dans Spotify</a>${ya("YouTube","btn ghost")}`;
   }
   $("pHint").textContent=hint;$("extLinks").innerHTML=links;
-  $("nRated").textContent="("+Object.keys(st.r).length+")";
+  $("nRated").textContent="("+ratedN()+")";
 }
 let rating=false;
 $("tierBtns").onclick=e=>{const b=e.target.closest("button[data-t]");if(!b||rating)return;snap(true);rate(SONGS[st.cur].t,b.dataset.t);renderDist();
   const n=nextUnrated(st.cur);if(n==null){renderSong();renderList();toast("Tout est noté dans cette sélection !");return}
-  toast(SONGS[st.cur].t+" → "+b.dataset.t);b.classList.add("pop");
+  toast(SONGS[st.cur].t+(b.dataset.t==="X"?" : sans avis":" → "+b.dataset.t));b.classList.add("pop");
   if(RM){go(n,true);return}
   rating=true;const g=document.querySelector(".stage");g.style.setProperty("--glow",`var(--${b.dataset.t})`);g.classList.add("out");
   setTimeout(()=>{rating=false;go(n,true)},430)};
+const ratedN=()=>Object.values(st.r).filter(v=>v!=="X").length, skipN=()=>Object.values(st.r).filter(v=>v==="X").length;
 function rate(t,tier){st.o=st.o||{};if(tier){if(st.r[t]!==tier)st.o[t]=Date.now();st.r[t]=tier}else{delete st.r[t];delete st.o[t]}save()}
 let undos=[];
 function snap(back){undos.push({r:{...st.r},o:{...(st.o||{})},cur:st.cur,back});if(undos.length>60)undos.shift();paintUndo()}
@@ -510,7 +515,7 @@ $("catChips").onclick=e=>{const b=e.target.closest("[data-c]");if(!b)return;cons
   save();renderChips();buildQueue();if(!queue.some(s=>s.i===st.cur)){const n=queue.find(s=>!st.r[s.t])||queue[0];go(n.i,false)}else{renderSong();renderList()}};
 function renderList(){
   const v=visible();
-  $("list").innerHTML=v.length?v.map(s=>{const r=st.r[s.t];return `<li><button data-i="${s.i}" class="${s.i===st.cur?"cur":""}"><span class="dot ${r?"":"no"}" style="${r?"background:var(--"+r+")":""}">${r||""}</span><span class="t">${esc(s.t)}</span><span class="s">${esc(s.src)}</span></button></li>`}).join(""):`<li class="empty">Rien à afficher.</li>`;
+  $("list").innerHTML=v.length?v.map(s=>{const r=st.r[s.t];return `<li><button data-i="${s.i}" class="${s.i===st.cur?"cur":""}"><span class="dot ${r?"":"no"}" style="${r?"background:var(--"+r+")":""}">${r==="X"?"–":r||""}</span><span class="t">${esc(s.t)}</span><span class="s">${esc(s.src)}</span></button></li>`}).join(""):`<li class="empty">Rien à afficher.</li>`;
   const c=$("list").querySelector(".cur");if(c&&!renderList.noscroll){const L=$("list"),top=c.offsetTop-L.offsetTop;if(top<L.scrollTop||top>L.scrollTop+L.clientHeight-50)L.scrollTop=top-L.clientHeight/3}
 }
 $("list").onclick=e=>{const b=e.target.closest("[data-i]");if(b)go(+b.dataset.i,true)};
@@ -528,17 +533,17 @@ function dropped(e){
   save();setTimeout(()=>{renderBoard();renderSong();renderList()},0);
 }
 function renderBoard(){
-  const all=Object.keys(st.r).length;
-  $("stats").innerHTML=`<div><b>${all}</b>notées</div><div><b>${SONGS.length-all}</b>restantes</div>`+TIERS.map(t=>`<div><b style="color:var(--${t})">${Object.values(st.r).filter(x=>x===t).length}</b>${t}</div>`).join("");
+  const all=ratedN(),sk=skipN();
+  $("stats").innerHTML=`<div><b>${all}</b>notées</div><div><b>${sk}</b>sans avis</div><div><b>${SONGS.length-all-sk}</b>restantes</div>`+TIERS.map(t=>`<div><b style="color:var(--${t})">${Object.values(st.r).filter(x=>x===t).length}</b>${t}</div>`).join("");
   const O=st.o||{};
-  $("board").innerHTML=TIERS.map(t=>{const it=SONGS.filter(s=>st.r[s.t]===t).sort((a,b)=>(O[a.t]||0)-(O[b.t]||0)||a.i-b.i);
-    return `<div class="tier"><div class="lab" style="background:var(--${t})">${t}</div><div class="items" data-tier="${t}">${it.map(s=>`<button class="item" data-i="${s.i}">${coverOf(s)?`<img src="${esc(coverOf(s))}" alt="" loading="lazy">`:""}<span>${esc(s.t)}<small>${esc(s.src)}</small></span></button>`).join("")}</div></div>`}).join("");
+  $("board").innerHTML=[...TIERS,"X"].map(t=>{const it=SONGS.filter(s=>st.r[s.t]===t).sort((a,b)=>(O[a.t]||0)-(O[b.t]||0)||a.i-b.i);
+    return `<div class="tier"><div class="lab${t==="X"?" labx":""}" style="background:var(--${t})">${t==="X"?"Sans<br>avis":t}</div><div class="items" data-tier="${t}">${it.map(s=>`<button class="item" data-i="${s.i}">${coverOf(s)?`<img src="${esc(coverOf(s))}" alt="" loading="lazy">`:""}<span>${esc(s.t)}<small>${esc(s.src)}</small></span></button>`).join("")}</div></div>`}).join("");
   $("nRated").textContent="("+all+")";renderDist();
   if(window.Sortable)document.querySelectorAll("#board .items").forEach(el=>Sortable.create(el,{group:"tiers",animation:160,delay:180,delayOnTouchOnly:true,touchStartThreshold:6,forceFallback:true,fallbackTolerance:4,ghostClass:"ghost",chosenClass:"chosen",onStart:()=>snap(false),onEnd:dropped}));
 }
 $("board").onclick=e=>{const b=e.target.closest("[data-i]");if(!b)return;sel=SONGS[+b.dataset.i];
   $("dTitle").textContent=sel.t;$("dSrc").textContent=sel.src+" · "+sel.y;
-  $("dTiers").innerHTML=TIERS.map(t=>`<button data-t="${t}" style="background:var(--${t})" class="${st.r[sel.t]===t?"on":""}">${t}</button>`).join("");
+  $("dTiers").innerHTML=TIERS.map(t=>`<button data-t="${t}" style="background:var(--${t})" class="${st.r[sel.t]===t?"on":""}">${t}</button>`).join("")+`<button data-t="X" class="skip ${st.r[sel.t]==="X"?"on":""}">Sans avis</button>`;
   $("dItem").showModal()};
 $("dTiers").onclick=e=>{const b=e.target.closest("[data-t]");if(!b)return;snap(false);rate(sel.t,b.dataset.t);$("dItem").close();renderBoard()};
 $("dRemove").onclick=()=>{snap(false);rate(sel.t,null);$("dItem").close();renderBoard()};
@@ -548,7 +553,7 @@ $("bCopy").onclick=async()=>{const txt=TIERS.map(t=>t+" : "+SONGS.filter(s=>st.r
   try{await navigator.clipboard.writeText(txt);toast("Tierlist copiée")}catch(e){$("saveTxt").value=txt;$("dSaveBox").showModal()}};
 $("bSave").onclick=()=>{$("saveTxt").value=JSON.stringify(st.r);$("dSaveBox").showModal()};
 $("bCopyCode").onclick=async()=>{try{await navigator.clipboard.writeText($("saveTxt").value);toast("Code copié")}catch(e){$("saveTxt").select();toast("Sélectionné : copie-le à la main")}};
-$("bImport").onclick=()=>{try{snap(false);const o=JSON.parse($("saveTxt").value);const n={};for(const[k,v]of Object.entries(o))if(TIERS.includes(v)&&SONGS.some(s=>s.t===k))n[k]=v;st.r=Object.assign(st.r,n);save();renderBoard();renderSong();renderList();$("dSaveBox").close();toast(Object.keys(n).length+" notes importées")}catch(e){toast("Code invalide")}};
+$("bImport").onclick=()=>{try{snap(false);const o=JSON.parse($("saveTxt").value);const n={};for(const[k,v]of Object.entries(o))if((TIERS.includes(v)||v==="X")&&SONGS.some(s=>s.t===k))n[k]=v;st.r=Object.assign(st.r,n);save();renderBoard();renderSong();renderList();$("dSaveBox").close();toast(Object.keys(n).length+" notes importées")}catch(e){toast("Code invalide")}};
 $("bCloseSave").onclick=()=>$("dSaveBox").close();
 $("bReset").onclick=()=>$("dConfirm").showModal();
 $("bNo").onclick=()=>$("dConfirm").close();
@@ -560,7 +565,7 @@ $("tabRate").onclick=()=>show("rate");$("tabBoard").onclick=()=>show("board");
 window.addEventListener("hashchange",()=>show(location.hash==="#tierlist"?"board":"rate"));
 document.addEventListener("keydown",e=>{if(e.target.matches("input,textarea")||document.querySelector("dialog[open]"))return;
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault();undo();return}
-  const k=e.key.toUpperCase();if(TIERS.includes(k)&&!$("viewRate").hidden){$("tierBtns").querySelector(`[data-t="${k}"]`).click()}
+  const k=e.key.toUpperCase();if((TIERS.includes(k)||k==="X"||k==="0")&&!$("viewRate").hidden){$("tierBtns").querySelector(`[data-t="${k==="0"?"X":k}"]`).click()}
   else if(e.key===" "&&ctl){e.preventDefault();ctl.togglePlay()}});
 
 buildQueue();renderChips();renderDist();paintUndo();
