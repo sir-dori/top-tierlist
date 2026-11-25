@@ -10,6 +10,8 @@ Prérequis : pip install playwright && playwright install chromium
 """
 import hashlib, http.server, json, os, re, socketserver, sys, threading, time, urllib.parse
 from playwright.sync_api import sync_playwright
+import subprocess
+subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "version.py")], check=True)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SORTABLE = open(os.path.join(ROOT, "tests", "sortable.min.js")).read()
@@ -258,6 +260,11 @@ def remix_externes_retires_et_anciennes_notes_nettoyees(pw):
     p.goto(URL); p.wait_for_timeout(500)
     check(p.inner_text("#nRated") == "(1)", "une note d'un titre retiré est encore comptée")
     ctx.close()
+
+@test
+def liste_des_chansons_jamais_en_cache_perime(pw):
+    h = hashlib.md5(open(os.path.join(ROOT, "songs.js"), "rb").read()).hexdigest()[:8]
+    check(f'songs.js?v={h}' in open(os.path.join(ROOT, "index.html"), encoding="utf-8").read(), "index.html ne pointe pas sur la dernière version de songs.js")
 
 ANDROID_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36"
 def goto_song(p, name):
