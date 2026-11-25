@@ -47,7 +47,6 @@ window.SONGS = [
 ["Guns for Hands", "Vessel", 2013, "A", "t:4RdRa3qq0GBSKjomxrkh5K", "", 1],
 ["Trees", "Vessel", 2013, "A", "t:1yf97yL1ll8FYXC27c9VTw", "", 1],
 ["Truce", "Vessel", 2013, "A", "t:6BEKt5axiNeWCr9huv0k7I", "", 1],
-["Lovely (2013)", "Vessel (édition bonus)", 2013, "V", "", "", 1],
 // — Blurryface (2015)
 ["Heavydirtysoul", "Blurryface", 2015, "A", "t:7i9763l5SSfOnqZ35VOcfy", "", 1],
 ["Stressed Out", "Blurryface", 2015, "A", "t:3CRDbSIZ4r5MsZ0YwxuEkn", "", 1],
@@ -143,13 +142,6 @@ window.SONGS = [
 ["Overcompensate (edit)", "Single", 2024, "V", "a:5ZSqGFLuXUJUlIObSkN0Bz", "", 1],
 ["The Craving (single version)", "Single", 2024, "V", "a:7K7eWZNR5t9UBlrN2ltzLI", "", 1],
 ["Doubt (demo)", "Single", 2025, "V", "a:5qkGe4UpUa8dsokzuroQ72", "", 1],
-["We Don't Believe What's on TV (Reading + Leeds)", "Version festival", 2016, "V", "", "", 0],
-["Air Catcher (Alternate Version)", "YouTube", 2011, "V", "", "https://www.youtube.com/watch?v=8Y1wHnpPwxM", 0],
-["Screen (Alternative Version)", "YouTube", 2013, "V", "", "https://www.youtube.com/watch?v=03RgMND8K8A", 0],
-["Lane Boy (Alternate Version)", "YouTube", 2015, "V", "", "https://www.youtube.com/watch?v=faU9Dhs6ZKk", 0],
-["We Don't Believe What's on TV (Alternate Version)", "YouTube", 2015, "V", "", "https://www.youtube.com/watch?v=edoQatZZefQ", 0],
-["Migraine (Alternate Version)", "YouTube", 2013, "V", "", "", 0],
-["Lovely (Alternate Version)", "YouTube", 2011, "V", "", "", 0],
 // — Inédits et démos jamais sortis officiellement
 ["I Need Something (to Kill Me)", "Inédit", 2011, "I", "", "", 0],
 ["Korea (Demo)", "Inédit — devenu Downstairs", 2012, "I", "", "", 0],
